@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Include">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Encoder">
+      <UniqueIdentifier>{434775bc-1fd5-4f6e-b863-8863dbd560b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shared">
+      <UniqueIdentifier>{acb30122-3ceb-4a20-843f-accc0a6717d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{0dd8aafd-83d4-409a-bfd0-41d51f79d355}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Encoder\CPU">
+      <UniqueIdentifier>{82d05407-d4b3-4ff2-ba46-886a2a2484e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Encoder\GPU">
+      <UniqueIdentifier>{0f0553d4-f334-499d-92e0-732d17798ee6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\JEnc.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\JEncCommon.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoder\JpegEncoderBase.h">
+      <Filter>Source Files\Encoder</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\JpegCommon.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\ComputeShader.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoder\JpegEncoderGPU.h">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoder\JpegEncoderGPU_444.h">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoder\JpegEncoderGPU_422.h">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoder\JpegEncoderGPU_420.h">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="JEncMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder\JpegEncoderBase.cpp">
+      <Filter>Source Files\Encoder</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\ComputeShader.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder\JpegEncoderGPU.cpp">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder\JpegEncoderGPU_444.cpp">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder\JpegEncoderGPU_422.cpp">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder\JpegEncoderGPU_420.cpp">
+      <Filter>Source Files\Encoder\GPU</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Bin\Shaders\Jpeg_CS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>

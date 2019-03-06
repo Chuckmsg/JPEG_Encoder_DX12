@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{5a019eb5-8829-4938-a79d-34e625c72da3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\JEncWrap">
+      <UniqueIdentifier>{2574cfaf-6a05-4a1c-b275-0c6bb0f69a4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\D3DWrap">
+      <UniqueIdentifier>{ecb56895-751a-4979-abd4-b744aa30e134}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Encoders">
+      <UniqueIdentifier>{462ed89a-93b4-470d-b9e0-9a10ef0647e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shared">
+      <UniqueIdentifier>{b0f545fe-6989-4103-850f-39c8d3943352}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D3DWrap\D3DWrap.cpp">
+      <Filter>Source Files\D3DWrap</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoders\SurfacePreparation.cpp">
+      <Filter>Source Files\Encoders</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoders\EncoderJEnc.cpp">
+      <Filter>Source Files\Encoders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\ComputeShader.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="DemoMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JEncWrap\MJPEG.h">
+      <Filter>Source Files\JEncWrap</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DWrap\D3DWrap.h">
+      <Filter>Source Files\D3DWrap</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoders\Encoder.h">
+      <Filter>Source Files\Encoders</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoders\SurfacePreparation.h">
+      <Filter>Source Files\Encoders</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoders\EncoderJEnc.h">
+      <Filter>Source Files\Encoders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\ComputeShader.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Bin\Shaders\Backbuffer_CS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>
