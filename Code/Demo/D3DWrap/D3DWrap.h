@@ -7,7 +7,7 @@
 
 #include "../stdafx.h"
 
-class D3DWrap
+class D3D11Wrap
 {
 	IDXGISwapChain*				mSwapChain;
 	ID3D11Texture2D*			mBackBuffer;
@@ -17,8 +17,8 @@ class D3DWrap
 	ID3D11DeviceContext*		mDeviceContext;
 
 public:
-	D3DWrap();
-	~D3DWrap();
+	D3D11Wrap();
+	~D3D11Wrap();
 
 	HRESULT Init(HWND hwnd, int width, int height);
 	void Cleanup();
@@ -33,4 +33,9 @@ public:
 	ID3D11UnorderedAccessView* GetBackBufferUAV();
 
 	void ResetTargets();
+};
+
+class D3D12Wrap
+{
+
 };

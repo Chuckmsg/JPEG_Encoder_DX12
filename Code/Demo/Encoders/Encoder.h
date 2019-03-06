@@ -70,7 +70,7 @@ public:
 									float outputScale,
 									int jpegQuality) = 0;
 
-	virtual HRESULT Init(D3DWrap* d3d) = 0;
+	virtual HRESULT Init(D3D11Wrap* d3d) = 0;
 
 	virtual char* Name() = 0;
 };

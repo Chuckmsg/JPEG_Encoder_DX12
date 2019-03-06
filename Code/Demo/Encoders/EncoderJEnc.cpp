@@ -58,7 +58,7 @@ EncodeResult EncoderJEnc::Encode(	ID3D11Texture2D* textureResource,
 	return result;
 }
 
-HRESULT EncoderJEnc::Init(D3DWrap* d3d)
+HRESULT EncoderJEnc::Init(D3D11Wrap* d3d)
 {
 	jEncoder444 = CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_4_4, d3d->GetDevice(), d3d->GetDeviceContext());
 	jEncoder422 = CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_2_2, d3d->GetDevice(), d3d->GetDeviceContext());

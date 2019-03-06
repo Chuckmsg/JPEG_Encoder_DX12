@@ -5,7 +5,7 @@
 //--------------------------------------------------------------------------------------
 #include "D3DWrap.h"
 
-D3DWrap::D3DWrap()
+D3D11Wrap::D3D11Wrap()
 {
 	mSwapChain			= NULL;
 	mBackBuffer			= NULL;
@@ -15,12 +15,12 @@ D3DWrap::D3DWrap()
 	mDeviceContext		= NULL;
 }
 
-D3DWrap::~D3DWrap()
+D3D11Wrap::~D3D11Wrap()
 {
 
 }
 
-HRESULT D3DWrap::Init(HWND hwnd, int width, int height)
+HRESULT D3D11Wrap::Init(HWND hwnd, int width, int height)
 {
 	HRESULT hr = S_OK;
 
@@ -104,12 +104,12 @@ HRESULT D3DWrap::Init(HWND hwnd, int width, int height)
 	return hr;
 }
 
-void D3DWrap::ResetTargets()
+void D3D11Wrap::ResetTargets()
 {
 	mDeviceContext->OMSetRenderTargets( 1, &mRenderTargetView, NULL );
 }
 
-void D3DWrap::Cleanup()
+void D3D11Wrap::Cleanup()
 {
 	//force to free up 0 ref objects
 	mDeviceContext->ClearState();
@@ -123,34 +123,93 @@ void D3DWrap::Cleanup()
 	SAFE_RELEASE(mDevice);
 }
 
-ID3D11Texture2D* D3DWrap::GetBackBuffer()
+ID3D11Texture2D* D3D11Wrap::GetBackBuffer()
 {
 	return mBackBuffer;
 }
 
-ID3D11Device* D3DWrap::GetDevice()
+ID3D11Device* D3D11Wrap::GetDevice()
 {
 	return mDevice;
 }
 
-ID3D11DeviceContext* D3DWrap::GetDeviceContext()
+ID3D11DeviceContext* D3D11Wrap::GetDeviceContext()
 {
 	return mDeviceContext;
 }
 
-ID3D11UnorderedAccessView* D3DWrap::GetBackBufferUAV()
+ID3D11UnorderedAccessView* D3D11Wrap::GetBackBufferUAV()
 {
 	return mBackbufferUAV;
 }
 
-void D3DWrap::Clear(float r, float g, float b, float a)
+void D3D11Wrap::Clear(float r, float g, float b, float a)
 {
 	//clear render target
 	static float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	GetDeviceContext()->ClearRenderTargetView( mRenderTargetView, ClearColor );
 }
 
-HRESULT D3DWrap::Present()
+HRESULT D3D11Wrap::Present()
 {
 	return mSwapChain->Present( 0, 0 );
+}
+
+HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
+{
+	HRESULT hr = E_FAIL;
+	//Debug layer
+#ifdef _DEBUG
+	hr = D3D12GetDebugInterface(IID_PPV_ARGS(&this->m_debugController));
+	if (SUCCEEDED(hr))
+		m_debugController->EnableDebugLayer();
+	else
+		OutputDebugStringA("\nFailed to create D3D12 Debug Interface\n");
+#endif // _DEBUG
+	return hr;
+}
+
+IDXGIAdapter1 * D3D12Wrap::_findDX12Adapter(IDXGIFactory5 ** ppFactory)
+{
+	return nullptr;
+}
+
+HRESULT D3D12Wrap::_createDevice(IDXGIFactory5 ** ppFactory, IDXGIAdapter1 ** ppAdapter)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createCommandQueue()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createCmdAllocatorAndList()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createSwapChain(unsigned int width, unsigned int height, IDXGIFactory5 ** ppFactory)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createRenderTargets()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createResourceDescHeap()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createFence()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT D3D12Wrap::_createRootSignature()
+{
+	return E_NOTIMPL;
 }
