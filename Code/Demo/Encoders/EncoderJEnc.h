@@ -24,7 +24,7 @@ public:
 									float outputScale,
 									int jpegQuality);
 
-	virtual HRESULT Init(D3DWrap* d3d);
+	virtual HRESULT Init(D3D11Wrap* d3d);
 
 	virtual char* Name() { return "JEnc"; }
 };

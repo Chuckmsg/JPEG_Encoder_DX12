@@ -24,6 +24,13 @@
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+//--- new dx12 ---
+#include <d3d12.h>
+#include <dxgi1_5.h>
+
+#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "DXGI.lib")
+
 //////////////////////////////////////////////////////////////////////////
 // to find memory leaks
 //////////////////////////////////////////////////////////////////////////
