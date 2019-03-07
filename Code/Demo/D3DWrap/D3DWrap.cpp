@@ -166,47 +166,235 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 	else
 		OutputDebugStringA("\nFailed to create D3D12 Debug Interface\n");
 #endif // _DEBUG
+
+	//Find a suitable DX12 adapter
+	IDXGIFactory5 * factory = NULL;
+	IDXGIAdapter1 * adapter = _findDX12Adapter(&factory);
+
+	//create our d3d device or a warp device if no suitable adapter was found
+	hr = _createDevice(&factory, &adapter);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	//create command queue
+	hr = _createCommandQueue();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create command allocator and command list
+	hr = _createCmdAllocatorAndList();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create the swapchain
+	hr = _createSwapChain(width, height, &factory);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create the render targets
+	hr = _createRenderTargets();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create resource heap
+	hr = _createResourceDescHeap();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create the fence
+	hr = _createFence();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+	//create the root signature
+	hr = _createRootSignature();
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	SAFE_RELEASE(factory);
+	SAFE_RELEASE(adapter);
+
+	//Define the viewport and scissor rect
+	{
+		this->m_viewPort.TopLeftX = 0.f;
+		this->m_viewPort.TopLeftY = 0.f;
+		this->m_viewPort.MinDepth = 0.f;
+		this->m_viewPort.MaxDepth = 1.f;
+		this->m_viewPort.Width = (float)width;
+		this->m_viewPort.Height = (float)height;
+
+		this->m_scissorRect.left = (long)this->m_viewPort.TopLeftX;
+		this->m_scissorRect.top = (long)this->m_viewPort.TopLeftY;
+		this->m_scissorRect.right = (long)this->m_viewPort.Width;
+		this->m_scissorRect.bottom = (long)this->m_viewPort.Height;
+	}
+
 	return hr;
 }
 
 IDXGIAdapter1 * D3D12Wrap::_findDX12Adapter(IDXGIFactory5 ** ppFactory)
 {
-	return nullptr;
+	IDXGIAdapter1 * adapter = NULL;
+
+	//Create the factory and iterate through adapters, find and return the first adapter that supports DX12
+	if (!*ppFactory)
+		CreateDXGIFactory(IID_PPV_ARGS(ppFactory));
+	assert(*ppFactory);
+
+	for (UINT index = 0;; ++index)
+	{
+		adapter = NULL;
+		if (DXGI_ERROR_NOT_FOUND == (*ppFactory)->EnumAdapters1(index, &adapter))
+			break;
+		if (SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, __uuidof(ID3D12Device), nullptr)))
+			break;
+
+		SAFE_RELEASE(adapter);
+	}
+
+	return adapter;
 }
 
 HRESULT D3D12Wrap::_createDevice(IDXGIFactory5 ** ppFactory, IDXGIAdapter1 ** ppAdapter)
 {
-	return E_NOTIMPL;
+	HRESULT hr = E_FAIL;
+	if (*ppAdapter)
+	{
+		hr = D3D12CreateDevice(*ppAdapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&this->m_device));
+	}
+	else
+	{
+		(*ppFactory)->EnumWarpAdapter(IID_PPV_ARGS(ppAdapter));
+		hr = D3D12CreateDevice(*ppAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&this->m_device));
+	}
+	return hr;
 }
 
 HRESULT D3D12Wrap::_createCommandQueue()
 {
-	return E_NOTIMPL;
+	//Description
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+	return  m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_commandQueue));
 }
 
 HRESULT D3D12Wrap::_createCmdAllocatorAndList()
 {
-	return E_NOTIMPL;
+	HRESULT hr = E_FAIL;
+
+	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
+
+	if (FAILED(hr))
+		return hr;
+
+	hr = m_device->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		m_commandAllocator,
+		nullptr,
+		IID_PPV_ARGS(&m_gCommandList)
+	);
+
+	if (SUCCEEDED(hr))
+		m_gCommandList->Close();
+
+	return hr;
 }
 
-HRESULT D3D12Wrap::_createSwapChain(unsigned int width, unsigned int height, IDXGIFactory5 ** ppFactory)
+HRESULT D3D12Wrap::_createSwapChain(HWND hwnd, unsigned int width, unsigned int height, IDXGIFactory5 ** ppFactory)
 {
-	return E_NOTIMPL;
+	HRESULT hr = E_FAIL;
+
+	//Description
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.Width = width;
+	swapChainDesc.Height = height;
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.Stereo = FALSE;
+	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.SampleDesc.Quality = 0;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.BufferCount = 1;
+	swapChainDesc.Scaling = DXGI_SCALING_NONE;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.Flags = 0;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+
+	hr = (*ppFactory)->CreateSwapChainForHwnd(
+		m_commandQueue,
+		hwnd,
+		&swapChainDesc,
+		nullptr,
+		nullptr,
+		reinterpret_cast<IDXGISwapChain1**>(&m_swapChain)
+	);
+
+	return hr;
 }
 
 HRESULT D3D12Wrap::_createRenderTargets()
 {
-	return E_NOTIMPL;
+	HRESULT hr = E_FAIL;
+
+	//Description for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.NumDescriptors = 1;
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+
+	hr = m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_rtvDescHeap));
+	if (FAILED(hr))
+		return hr;
+
+	//Create resources for render targets
+	m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_CPU_DESCRIPTOR_HANDLE cdh = m_rtvDescHeap->GetCPUDescriptorHandleForHeapStart();
+
+	//one RTV for each swapchain buffer
+	for (UINT i = 0; i < 1; i++)
+	{
+		hr = m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTarget));
+		if (SUCCEEDED(hr))
+		{
+			m_device->CreateRenderTargetView(m_renderTarget, nullptr, cdh);
+			cdh.ptr += m_rtvDescSize;
+		}
+	}
+	return hr;
 }
 
 HRESULT D3D12Wrap::_createResourceDescHeap()
 {
-	return E_NOTIMPL;
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+	heapDescriptorDesc.NumDescriptors = 1;
+	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	return m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_resourceHeap));
 }
 
 HRESULT D3D12Wrap::_createFence()
 {
-	return E_NOTIMPL;
+	HRESULT hr = E_FAIL;
+	hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+	if (FAILED(hr))
+		return hr;
+	m_fenceValue = 1;
+
+	m_fenceEvent = CreateEvent(0, false, false, 0);
+
+	return hr;
 }
 
 HRESULT D3D12Wrap::_createRootSignature()

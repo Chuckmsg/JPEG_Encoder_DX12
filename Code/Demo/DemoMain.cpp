@@ -33,11 +33,17 @@ ComputeTexture*			gTexture			= NULL;
 ID3D11Buffer*			gConstantBuffer		= NULL;
 ID3D11SamplerState*		gSamplerState		= NULL;
 
+//DX12 Globals
+bool DX12 = false;
+
 //--------------------------------------------------------------------------------------
 // Forward declarations
 //--------------------------------------------------------------------------------------
 HWND	            InitWindow( HINSTANCE hInstance, int nCmdShow, int width, int height );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+HRESULT				InitDX12(HWND hwnd, unsigned int width, unsigned int height);
+HRESULT				RenderDX12(float deltaTime, HWND hwnd);
+HRESULT				UpdateDX12(float deltaTime, HWND hwnd);
 HRESULT				Render(float deltaTime, HWND hwnd);
 HRESULT				Update(float deltaTime, HWND hwnd);
 HRESULT				Cleanup();
@@ -47,6 +53,17 @@ HRESULT				Cleanup();
 HRESULT Init(HWND hwnd, int width, int height)
 {
 	HRESULT hr = S_OK;
+
+	int response = MessageBoxA(hwnd, "Run in DX12 Mode? Defaults to DX11 otherwise.\n", "API Mode", MB_YESNO | MB_SETFOREGROUND);
+
+	if (response == IDYES)
+	{
+		if (SUCCEEDED(InitDX12(hwnd, width, height)))
+		{
+			DX12 = true;
+			return S_OK;
+		}
+	}
 
 	if(SUCCEEDED(hr = gD3D.Init(hwnd, width, height)))
 	{
@@ -416,4 +433,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 	}
 
 	return 0;
+}
+
+HRESULT InitDX12(HWND hwnd, unsigned int width, unsigned int height)
+{
+	return E_NOTIMPL;
 }
