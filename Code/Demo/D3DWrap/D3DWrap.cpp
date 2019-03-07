@@ -191,7 +191,7 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 		return hr;
 	}
 	//create the swapchain
-	hr = _createSwapChain(width, height, &factory);
+	hr = _createSwapChain(hwnd, width, height, &factory);
 	if (FAILED(hr))
 	{
 		return hr;

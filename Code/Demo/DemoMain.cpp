@@ -34,7 +34,8 @@ ID3D11Buffer*			gConstantBuffer		= NULL;
 ID3D11SamplerState*		gSamplerState		= NULL;
 
 //DX12 Globals
-bool DX12 = false;
+bool DX12				= false;
+D3D12Wrap				gD3D12;
 
 //--------------------------------------------------------------------------------------
 // Forward declarations
@@ -437,5 +438,5 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
 HRESULT InitDX12(HWND hwnd, unsigned int width, unsigned int height)
 {
-	return E_NOTIMPL;
+	return gD3D12.Init(hwnd, width, height);
 }
