@@ -28,6 +28,7 @@
 //--- new dx12 ---
 #include <d3d12.h>
 #include <dxgi1_5.h>
+#include <comdef.h>
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "DXGI.lib")

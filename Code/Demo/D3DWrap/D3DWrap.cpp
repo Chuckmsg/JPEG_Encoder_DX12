@@ -202,12 +202,6 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 	{
 		return hr;
 	}
-	//create resource heap
-	hr = _createResourceDescHeap();
-	if (FAILED(hr))
-	{
-		return hr;
-	}
 	//create the fence
 	hr = _createFence();
 	if (FAILED(hr))
@@ -325,10 +319,10 @@ HRESULT D3D12Wrap::_createSwapChain(HWND hwnd, unsigned int width, unsigned int 
 	swapChainDesc.Stereo = FALSE;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.BufferCount = 1;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
+	swapChainDesc.BufferCount = BUFFER_COUNT;
 	swapChainDesc.Scaling = DXGI_SCALING_NONE;
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 	swapChainDesc.Flags = 0;
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
@@ -351,10 +345,19 @@ HRESULT D3D12Wrap::_createRenderTargets()
 
 	//Description for descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.NumDescriptors = 1;
+	dhd.NumDescriptors = BUFFER_COUNT;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 	hr = m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_rtvDescHeap));
+	if (FAILED(hr))
+		return hr;
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
+	heapDescriptorDesc.NumDescriptors = BUFFER_COUNT;
+	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_uavHeap));
 	if (FAILED(hr))
 		return hr;
 
@@ -362,27 +365,53 @@ HRESULT D3D12Wrap::_createRenderTargets()
 	m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = m_rtvDescHeap->GetCPUDescriptorHandleForHeapStart();
 
+	m_uavDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_CPU_DESCRIPTOR_HANDLE uav_cdh = m_uavHeap->GetCPUDescriptorHandleForHeapStart();
+
+	D3D12_HEAP_PROPERTIES  heapProp;
+	ZeroMemory(&heapProp, sizeof(D3D12_HEAP_PROPERTIES));
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 0;
+	heapProp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC uavDesc;
+	ZeroMemory(&uavDesc, sizeof(D3D12_RESOURCE_DESC));
+
+
 	//one RTV for each swapchain buffer
-	for (UINT i = 0; i < 1; i++)
+	for (UINT i = 0; i < BUFFER_COUNT; i++)
 	{
-		hr = m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTarget));
+		hr = m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i]));
 		if (SUCCEEDED(hr))
 		{
-			m_device->CreateRenderTargetView(m_renderTarget, nullptr, cdh);
+			m_device->CreateRenderTargetView(m_renderTargets[i], nullptr, cdh);
 			cdh.ptr += m_rtvDescSize;
+
+			uavDesc = m_renderTargets[i]->GetDesc();
+			uavDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+			//Since in DX12 you can no longer create a UAV for a backbuffer resource, we need to create new buffer resources for the UAVs
+			//And then later we need to copy the backbuffer RTV to the UAV buffer before we can use it in the Compute Shader
+			hr = m_device->CreateCommittedResource(
+				&heapProp,
+				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+				&uavDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(&m_UAVs[i])
+			);
+			if (SUCCEEDED(hr))
+			{
+				m_device->CreateUnorderedAccessView(m_UAVs[i], nullptr, nullptr, uav_cdh);
+				uav_cdh.ptr += m_uavDescSize;
+			}
 		}
 	}
 	return hr;
 }
 
-HRESULT D3D12Wrap::_createResourceDescHeap()
-{
-	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
-	heapDescriptorDesc.NumDescriptors = 1;
-	heapDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	return m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_resourceHeap));
-}
 
 HRESULT D3D12Wrap::_createFence()
 {

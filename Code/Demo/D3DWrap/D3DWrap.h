@@ -52,6 +52,7 @@ public:
 	ID3D12CommandList * GetCopyCmdList()						{ return m_cpyCommandList; }
 	ID3D12GraphicsCommandList * getGraphicsCmdList()	{ return m_gCommandList; }
 private:
+	static const unsigned int BUFFER_COUNT	 = 2;
 	//TODO: Add all relevant D3D components here	       
 	//D3D12 Debug														    
 	ID3D12Debug* m_debugController								= NULL;
@@ -60,18 +61,21 @@ private:
 	ID3D12CommandQueue* m_commandQueue				= NULL;
 	ID3D12CommandAllocator * m_commandAllocator		= NULL;
 	IDXGISwapChain3* m_swapChain									= NULL;
-	ID3D12Resource* m_renderTarget									= NULL;
+	ID3D12Resource* m_renderTargets[BUFFER_COUNT]	= { NULL, NULL };
+	ID3D12Resource* m_UAVs[BUFFER_COUNT]					= { NULL, NULL };
 	D3D12_VIEWPORT m_viewPort										= {};
 	D3D12_RECT m_scissorRect											= {};
 	ID3D12RootSignature* m_rootSignature						= NULL;
 	UINT m_rtvDescSize														= 0;
+	UINT m_uavDescSize														= 0;
 	//Command lists
 	ID3D12GraphicsCommandList* m_gCommandList			= NULL; //For rendering
 	ID3D12CommandList * m_comCommandList					= NULL; //For compute
 	ID3D12CommandList * m_cpyCommandList					= NULL; //For copy
 	//Heaps
+	ID3D12Heap* m_resourceHeap										= NULL;
 	ID3D12DescriptorHeap* m_rtvDescHeap						= NULL;
-	ID3D12DescriptorHeap* m_resourceHeap						= NULL;
+	ID3D12DescriptorHeap* m_uavHeap								= NULL;
 	//Synchronization objects
 	UINT m_frameIndex															= 0;
 	HANDLE m_fenceEvent													= NULL;
@@ -85,7 +89,6 @@ private:
 	HRESULT _createCmdAllocatorAndList();
 	HRESULT _createSwapChain(HWND hwnd, unsigned int width, unsigned int height, IDXGIFactory5 ** ppFactory);
 	HRESULT _createRenderTargets();
-	HRESULT _createResourceDescHeap();
 	HRESULT _createFence();
 	HRESULT _createRootSignature();
 };
