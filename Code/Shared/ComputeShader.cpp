@@ -553,18 +553,49 @@ DX12_ComputeShader::DX12_ComputeShader()
 
 bool DX12_ComputeShader::Init(TCHAR * shaderFile, char * pFunctionName, D3D_SHADER_MACRO * pDefines, ID3D12Device * pDevice, ID3D12GraphicsCommandList * pCommandList)
 {
-	return false;
+	HRESULT hr = S_OK;
+
+	m_device = pDevice;
+	m_commandList = pCommandList;
+
+	ID3DBlob* pCompiledShader = NULL;
+	ID3DBlob* pErrorBlob = NULL;
+	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined(DEBUG) || defined(_DEBUG)
+	dwShaderFlags |= D3DCOMPILE_DEBUG;
+	dwShaderFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL0;
+#else
+	dwShaderFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL0;
+#endif
+
+	// Change to cs_6_0 (?)
+	hr = D3DCompileFromFile(shaderFile, pDefines, NULL, pFunctionName, "cs_5_0",
+		dwShaderFlags, NULL, &pCompiledShader, &pErrorBlob);
+
+	if (pErrorBlob)
+		OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
+
+	// Does this work (?)
+	if (S_OK == hr)
+		m_computeShader = pCompiledShader;
+
+	SAFE_RELEASE(pErrorBlob);
+	// Necessary (?)
+	SAFE_RELEASE(pCompiledShader);
+
+	return (hr == S_OK);
 }
 
 DX12_ComputeShader::~DX12_ComputeShader()
 {
 	SAFE_RELEASE(m_computeShader);
-	// Maybe not necessary
+	// Might not necessary
 	SAFE_RELEASE(m_commandList);
 }
 
 void DX12_ComputeShader::Set()
 {
+
 }
 
 void DX12_ComputeShader::Unset()
@@ -572,6 +603,11 @@ void DX12_ComputeShader::Unset()
 }
 
 DX12_ComputeShader * DX12_ComputeWrap::CreateComputeShader(TCHAR * shaderFile, char * blobFileAppendix, char * pFunctionName, D3D_SHADER_MACRO * pDefines)
+{
+	return nullptr;
+}
+
+ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(UINT uSize, VOID * pInitData, char * debugName)
 {
 	return nullptr;
 }

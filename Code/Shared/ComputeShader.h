@@ -361,6 +361,7 @@ class DX12_ComputeShader
 	friend class DX12_ComputeWrap;
 
 	ID3D12Device*				m_device;
+	// Needed (?)
 	ID3D12GraphicsCommandList*	m_commandList;
 	ID3DBlob*					m_computeShader;
 
