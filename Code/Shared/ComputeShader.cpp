@@ -545,3 +545,33 @@ ComputeShader* ComputeWrap::CreateComputeShader(TCHAR* shaderFile, char* blobFil
 
 	return cs;
 }
+
+DX12_ComputeShader::DX12_ComputeShader()
+	: m_device(NULL), m_commandList(NULL), m_computeShader(NULL)
+{
+}
+
+bool DX12_ComputeShader::Init(TCHAR * shaderFile, char * pFunctionName, D3D_SHADER_MACRO * pDefines, ID3D12Device * pDevice, ID3D12GraphicsCommandList * pCommandList)
+{
+	return false;
+}
+
+DX12_ComputeShader::~DX12_ComputeShader()
+{
+	SAFE_RELEASE(m_computeShader);
+	// Maybe not necessary
+	SAFE_RELEASE(m_commandList);
+}
+
+void DX12_ComputeShader::Set()
+{
+}
+
+void DX12_ComputeShader::Unset()
+{
+}
+
+DX12_ComputeShader * DX12_ComputeWrap::CreateComputeShader(TCHAR * shaderFile, char * blobFileAppendix, char * pFunctionName, D3D_SHADER_MACRO * pDefines)
+{
+	return nullptr;
+}
