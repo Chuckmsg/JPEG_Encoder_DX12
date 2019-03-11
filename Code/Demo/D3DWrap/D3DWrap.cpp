@@ -390,7 +390,7 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 	dhd.NumDescriptors = BUFFER_COUNT;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
-	hr = m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_rtvDescHeap));
+	hr = m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_rtvHeap));
 	if (FAILED(hr))
 		return hr;
 
@@ -414,7 +414,7 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 
 	//Create resources for render targets
 	m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	D3D12_CPU_DESCRIPTOR_HANDLE cdh = m_rtvDescHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE cdh = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 
 	m_uavDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_CPU_DESCRIPTOR_HANDLE uav_cdh = m_uavHeap->GetCPUDescriptorHandleForHeapStart();
@@ -479,9 +479,32 @@ HRESULT D3D12Wrap::_createFence()
 
 HRESULT D3D12Wrap::_createRootSignature()
 {
-	return E_NOTIMPL;
+	//Important things to identify: 
+	// 1. How many root constants does this program need? (1 DWORD, 0 indirections)
+	// 2. How many Root Descriptors does this program need/have (CBV, SRV, UAV)? (2 DWORDs, 1 indirection)
+	// 3. How many Descriptor Tables do we need/want? (1 DWORD, 2 indirections)
+	// 4. How many DWORDs did we use (Max size of 64, or 63 with enabled IA)
 
-	
+	//Start with defining descriptor ranges
+	D3D12_ROOT_DESCRIPTOR  rootDesc[3];
+	ZeroMemory(rootDesc, sizeof(D3D12_ROOT_DESCRIPTOR) * 3);
+
+	D3D12_ROOT_PARAMETER rootParams[3];
+	{
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+		rootParams[0].Descriptor = rootDesc[0];
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+		rootParams[0].Descriptor = rootDesc[0];
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		rootParams[0].Descriptor = rootDesc[0];
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		//Total of 6 DWORD
+	}
+
 
 	// Create descriptor of static sampler
 	D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -498,4 +521,30 @@ HRESULT D3D12Wrap::_createRootSignature()
 	sampler.ShaderRegister = 0;
 	sampler.RegisterSpace = 0;
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+	rsDesc.NumParameters = _ARRAYSIZE(rootParams); //How many entries?
+	rsDesc.pParameters = rootParams; //Pointer to array of table entries
+	rsDesc.NumStaticSamplers = 1;  //One static samplers were defined
+	rsDesc.pStaticSamplers = &sampler; // The static sampler
+	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	//Serialize the root signature (no error blob)
+	ID3DBlob * pSerBlob = NULL;
+	ID3DBlob * pError = NULL;
+	HRESULT hr = D3D12SerializeRootSignature(
+		&rsDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&pSerBlob,
+		&pError
+	);
+
+	if (FAILED(hr))
+	{
+		_com_error err(hr);
+		OutputDebugStringW(err.ErrorMessage());
+	}
+	//Use d3d12 device to create the root signature
+	UINT nodeMask = 0;
+	return this->m_device->CreateRootSignature(nodeMask, pSerBlob->GetBufferPointer(), pSerBlob->GetBufferSize(), IID_PPV_ARGS(&this->m_rootSignature));
 }

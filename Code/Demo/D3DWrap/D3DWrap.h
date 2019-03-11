@@ -52,7 +52,7 @@ public:
 	ID3D12GraphicsCommandList * GetCopyCmdList()					{ return m_cpyCmdList; }
 	ID3D12GraphicsCommandList * GetGraphicsCmdList()				{ return m_gCmdList; }
 
-	ID3D12DescriptorHeap * GetRTVHeap()			{ return m_rtvDescHeap; }
+	ID3D12DescriptorHeap * GetRTVHeap()			{ return m_rtvHeap; }
 	ID3D12DescriptorHeap * GetUAVHeap()		{ return m_uavHeap; }
 	ID3D12DescriptorHeap * GetSRVHeap()			{ return m_srvHeap; }
 	ID3D12DescriptorHeap * GetCBVHeap()			{ return m_cbvHeap; }
@@ -91,7 +91,7 @@ private:
 	UINT m_rtvDescSize														= 0;
 	UINT m_uavDescSize														= 0;
 	//Heaps
-	ID3D12DescriptorHeap* m_rtvDescHeap						= NULL;
+	ID3D12DescriptorHeap* m_rtvHeap								= NULL;
 	ID3D12DescriptorHeap* m_uavHeap								= NULL;
 	ID3D12DescriptorHeap* m_cbvHeap								= NULL;
 	ID3D12DescriptorHeap* m_srvHeap								= NULL;
