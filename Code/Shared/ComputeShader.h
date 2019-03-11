@@ -9,6 +9,10 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
+//////////// directx 12
+#include <d3d12.h>
+/////////////
+
 #include <tchar.h>
 
 #ifndef SAFE_RELEASE

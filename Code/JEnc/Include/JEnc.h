@@ -22,5 +22,9 @@ extern "C"
 
 	DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
 		struct ID3D11Device* d3dDevice, struct ID3D11DeviceContext* d3dContext);
+
+	// Create a jpeg encoder instace with directx 12
+	DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
+		struct ID3D12Device* d3dDevice, struct ID3D12DeviceContext* d3dContext);
 }
 #endif

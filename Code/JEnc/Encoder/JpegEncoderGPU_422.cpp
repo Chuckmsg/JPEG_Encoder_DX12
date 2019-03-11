@@ -13,6 +13,12 @@ JpegEncoderGPU_422::JpegEncoderGPU_422(ID3D11Device* d3dDevice, ID3D11DeviceCont
 	mSubsampleType = JENC_CHROMA_SUBSAMPLE_4_2_2;
 }
 
+JpegEncoderGPU_422::JpegEncoderGPU_422(ID3D12Device* d3dDevice, ID3D12DeviceContext* d3dContext)
+	: JpegEncoderGPU(d3dDevice, d3dContext)
+{
+	mSubsampleType = JENC_CHROMA_SUBSAMPLE_4_2_2;
+}
+
 JpegEncoderGPU_422::~JpegEncoderGPU_422()
 {
 
