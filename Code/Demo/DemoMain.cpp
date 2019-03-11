@@ -62,6 +62,10 @@ HRESULT Init(HWND hwnd, int width, int height)
 		if (SUCCEEDED(InitDX12(hwnd, width, height)))
 		{
 			DX12 = true;
+
+			gComputeWrap = new ComputeWrap(&gD3D12);
+			gBackbufferShader = gComputeWrap->CreateComputeShader(_T("../Shaders/Backbuffer_CS.hlsl"), NULL, "main", NULL, DX12);
+
 			return S_OK;
 		}
 	}

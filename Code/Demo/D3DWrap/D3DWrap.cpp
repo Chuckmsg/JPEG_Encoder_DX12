@@ -179,13 +179,13 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 	}
 
 	//create command queue
-	hr = _createCommandQueue();
+	hr = _createCommandQueues();
 	if (FAILED(hr))
 	{
 		return hr;
 	}
 	//create command allocator and command list
-	hr = _createCmdAllocatorAndList();
+	hr = _createCmdAllocatorsAndLists();
 	if (FAILED(hr))
 	{
 		return hr;
@@ -197,7 +197,7 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 		return hr;
 	}
 	//create the render targets
-	hr = _createRenderTargets();
+	hr = _createHeapsAndResources();
 	if (FAILED(hr))
 	{
 		return hr;
@@ -274,21 +274,31 @@ HRESULT D3D12Wrap::_createDevice(IDXGIFactory5 ** ppFactory, IDXGIAdapter1 ** pp
 	return hr;
 }
 
-HRESULT D3D12Wrap::_createCommandQueue()
+HRESULT D3D12Wrap::_createCommandQueues()
 {
 	//Description
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	return  m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_commandQueue));
+	HRESULT hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_directQ));
+	if (FAILED(hr))
+		return hr;
+
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+	hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_copyQ));
+	if (FAILED(hr))
+		return hr;
+
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	return m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_computeQ));
 }
 
-HRESULT D3D12Wrap::_createCmdAllocatorAndList()
+HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 {
 	HRESULT hr = E_FAIL;
 
-	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
+	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_directAllocator));
 
 	if (FAILED(hr))
 		return hr;
@@ -296,13 +306,45 @@ HRESULT D3D12Wrap::_createCmdAllocatorAndList()
 	hr = m_device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		m_commandAllocator,
+		m_directAllocator,
 		nullptr,
-		IID_PPV_ARGS(&m_gCommandList)
+		IID_PPV_ARGS(&m_gCmdList)
 	);
 
 	if (SUCCEEDED(hr))
-		m_gCommandList->Close();
+		m_gCmdList->Close();
+
+	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&m_copyAllocator));
+
+	if (FAILED(hr))
+		return hr;
+
+	hr = m_device->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_COPY,
+		m_copyAllocator,
+		nullptr,
+		IID_PPV_ARGS(&m_cpyCmdList)
+	);
+
+	if (SUCCEEDED(hr))
+		m_cpyCmdList->Close();
+	
+	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeAllocator));
+
+	if (FAILED(hr))
+		return hr;
+
+	hr = m_device->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_COMPUTE,
+		m_computeAllocator,
+		nullptr,
+		IID_PPV_ARGS(&m_comCmdList)
+	);
+
+	if (SUCCEEDED(hr))
+		m_comCmdList->Close();
 
 	return hr;
 }
@@ -328,7 +370,7 @@ HRESULT D3D12Wrap::_createSwapChain(HWND hwnd, unsigned int width, unsigned int 
 
 
 	hr = (*ppFactory)->CreateSwapChainForHwnd(
-		m_commandQueue,
+		m_directQ,
 		hwnd,
 		&swapChainDesc,
 		nullptr,
@@ -339,7 +381,7 @@ HRESULT D3D12Wrap::_createSwapChain(HWND hwnd, unsigned int width, unsigned int 
 	return hr;
 }
 
-HRESULT D3D12Wrap::_createRenderTargets()
+HRESULT D3D12Wrap::_createHeapsAndResources()
 {
 	HRESULT hr = E_FAIL;
 
@@ -358,6 +400,15 @@ HRESULT D3D12Wrap::_createRenderTargets()
 	heapDescriptorDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_uavHeap));
+	if (FAILED(hr))
+		return hr;
+
+	heapDescriptorDesc.NumDescriptors = 1; //We only have one Bitmap Image to take care of
+	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_srvHeap));
+	if (FAILED(hr))
+		return hr;
+
+	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_cbvHeap)); //We only have one CB too AFAIK
 	if (FAILED(hr))
 		return hr;
 
@@ -392,7 +443,7 @@ HRESULT D3D12Wrap::_createRenderTargets()
 			uavDesc = m_renderTargets[i]->GetDesc();
 			uavDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-			//Since in DX12 you can no longer create a UAV for a backbuffer resource, we need to create new buffer resources for the UAVs
+			//Since in DX12 you can no longer directly create a UAV for a backbuffer resource, we need to create new buffer resources for the UAVs
 			//And then later we need to copy the backbuffer RTV to the UAV buffer before we can use it in the Compute Shader
 			hr = m_device->CreateCommittedResource(
 				&heapProp,
@@ -429,4 +480,22 @@ HRESULT D3D12Wrap::_createFence()
 HRESULT D3D12Wrap::_createRootSignature()
 {
 	return E_NOTIMPL;
+
+	
+
+	// Create descriptor of static sampler
+	D3D12_STATIC_SAMPLER_DESC sampler{};
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.MipLODBias = 0.0f;
+	sampler.MaxAnisotropy = 16;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	sampler.MinLOD = -D3D11_FLOAT32_MAX;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+	sampler.ShaderRegister = 0;
+	sampler.RegisterSpace = 0;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 }

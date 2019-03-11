@@ -505,3 +505,115 @@ HRESULT SurfacePreparation::CreatePixelShader()
 
 	return hr;
 }
+
+SurfacePreperationDX12::SurfacePreperationDX12()
+{
+}
+
+SurfacePreperationDX12::~SurfacePreperationDX12()
+{
+}
+
+HRESULT SurfacePreperationDX12::Init(ID3D12Device * device, ID3D12RootSignature * pRoot)
+{
+	m_device = device;
+	m_root = pRoot;
+
+	HRESULT hr = _compileVertexShader();
+	if (FAILED(hr))
+		return hr;
+
+	hr = _compilePixelShader();
+	if (FAILED(hr))
+		return hr;
+
+	hr = _createPSO();
+
+	return hr;
+}
+
+void SurfacePreperationDX12::Cleanup()
+{
+	SAFE_RELEASE(m_vertexShaderCode);
+	SAFE_RELEASE(m_pixelShaderCode);
+	SAFE_RELEASE(m_pso);
+}
+
+HRESULT SurfacePreperationDX12::_compileVertexShader()
+{
+	char szVertexShader[] = "struct VS_OUT"
+		"{"
+		"    float4 pos    : SV_Position;"
+		"    float2 tex    : TEXCOORD0;"
+		"};"
+
+		"VS_OUT main( uint vertexId : SV_VertexID )"
+		"{"
+		"	VS_OUT output = (VS_OUT)0;"
+
+		"	if(vertexId == 3)"
+		"		output.pos = float4(1.0, 1.0, 0.5, 1.0);"
+		"	else if(vertexId == 2)"
+		"		output.pos = float4(1.0, -1.0, 0.5, 1.0);"
+		"	else if(vertexId == 1)"
+		"		output.pos = float4(-1.0, 1.0, 0.5, 1.0);"
+		"	else if(vertexId == 0)"
+		"		output.pos = float4(-1.0, -1.0, 0.5, 1.0);"
+
+		"	output.tex = float2(0.5f, -0.5f) * output.pos.xy + 0.5f.xx;"
+
+		"	return output;"
+		"}";
+
+	ID3D10Blob* pErrors = NULL;
+	HRESULT hr = D3DCompile(szVertexShader, sizeof(szVertexShader), NULL,
+		NULL, NULL, "main", "vs_5_0", 0, 0, &m_vertexShaderCode, &pErrors);
+
+	if (FAILED(hr))
+	{
+		MessageBoxA(0, (char*)pErrors->GetBufferPointer(), "VS Compile error!", 0);
+	}
+
+	return hr;
+}
+
+HRESULT SurfacePreperationDX12::_compilePixelShader()
+{
+	char szPixelShader[] =
+		"Texture2D txDiffuse : register( t0 );"
+		"SamplerState samLinear"
+		"{"
+		"	Filter = MIN_MAG_MIP_LINEAR;"
+		"	AddressU = Wrap;"
+		"	AddressV = Wrap;"
+		"};"
+
+		"struct VS_OUT"
+		"{"
+		"    float4 pos    : SV_Position;"
+		"    float2 tex    : TEXCOORD0;"
+		"};"
+
+		"float4 main( VS_OUT input ) : SV_Target"
+		"{"
+		//flip v-coord?
+		"return float4(txDiffuse.Sample(samLinear, float2(input.tex.x, input.tex.y)).rgb, 1);"
+		"}";
+
+	ID3D10Blob* pShader = NULL;
+	ID3D10Blob* pErrors = NULL;
+	HRESULT hr = D3DCompile(szPixelShader, sizeof(szPixelShader), NULL,
+		NULL, NULL, "main", "ps_5_0", 0, 0, &m_pixelShaderCode, &pErrors);
+
+	if (FAILED(hr))
+	{
+		MessageBoxA(0, (char*)pErrors->GetBufferPointer(), "PS Compile error!", 0);
+	}
+
+	return hr;
+}
+
+HRESULT SurfacePreperationDX12::_createPSO()
+{
+	return E_NOTIMPL;
+}
