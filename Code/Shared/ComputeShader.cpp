@@ -300,7 +300,15 @@ ComputeTexture* ComputeWrap::CreateTextureFromBitmap(TCHAR* textureFilename, cha
 	{
 		if (dx12)
 		{
+			texture->m_DX12Resource = CreateTextureResourceDX12(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				bitmapInfoHeader.biWidth,
+				bitmapInfoHeader.biHeight,
+				bitmapInfoHeader.biWidth * 4,
+				bits
+			);
 
+			SAFE_DELETE(bits);
 		}
 		else
 		{
@@ -432,7 +440,7 @@ ID3D12Resource * ComputeWrap::CreateTextureResourceDX12(DXGI_FORMAT dxFormat, UI
 	hr = m_D3D12Wrap->GetDevice()->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
-		&textureDesc,
+		&rdBuffer,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&_textureUploadHeap)
@@ -453,7 +461,47 @@ ID3D12Resource * ComputeWrap::CreateTextureResourceDX12(DXGI_FORMAT dxFormat, UI
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE; //since we access the srv in compute shader
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
+	//Get all the necessary D3D12 object pointers
+	ID3D12CommandAllocator * pCmdAllo = m_D3D12Wrap->GetComputeAllocator();
+	ID3D12GraphicsCommandList * pCompCmdList = m_D3D12Wrap->GetComputeCmdList();
+	ID3D12CommandQueue * pCompCmdQ = m_D3D12Wrap->GetComputeQueue();
+	ID3D12DescriptorHeap * pSRVHeap = m_D3D12Wrap->GetSRVHeap();
 
+	pCmdAllo->Reset();
+	pCompCmdList->Reset(pCmdAllo, nullptr);
+
+	//Fill the cmd q with commands
+	pCompCmdList->SetComputeRootSignature(m_D3D12Wrap->GetRootSignature());
+	UpdateSubresources(pCompCmdList, pTexture, _textureUploadHeap, 0, 0, 1, &textureData);
+	pCompCmdList->ResourceBarrier(1, &barrier);
+
+	// Describe and create a SRV for the texture
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	m_D3D12Wrap->GetDevice()->CreateShaderResourceView(
+		pTexture,
+		&srvDesc,
+		pSRVHeap->GetCPUDescriptorHandleForHeapStart()
+	);
+
+	// set the descriptor heap
+	ID3D12DescriptorHeap* descriptorHeaps[] = { pSRVHeap };
+	pCompCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	// set the descriptor table to the descriptor heap (parameter 1, as constant buffer root descriptor is parameter index 0)
+	pCompCmdList->SetComputeRootDescriptorTable(0, pSRVHeap->GetGPUDescriptorHandleForHeapStart());
+
+	//Close the q and execute it
+	pCompCmdList->Close();
+	ID3D12CommandList* ppCommandLists[] = { pCompCmdList };
+	pCompCmdQ->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
+
+	m_D3D12Wrap->WaitForGPUCompletion(pCompCmdQ, m_D3D12Wrap->GetFence(0));
+
+	SAFE_RELEASE(_textureUploadHeap);
 
 	return pTexture;
 }

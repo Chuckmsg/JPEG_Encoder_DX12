@@ -203,7 +203,7 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 		return hr;
 	}
 	//create the fence
-	hr = _createFence();
+	hr = _createFences();
 	if (FAILED(hr))
 	{
 		return hr;
@@ -217,7 +217,6 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 
 	SAFE_RELEASE(factory);
 	SAFE_RELEASE(adapter);
-
 	//Define the viewport and scissor rect
 	{
 		this->m_viewPort.TopLeftX = 0.f;
@@ -265,6 +264,7 @@ HRESULT D3D12Wrap::_createDevice(IDXGIFactory5 ** ppFactory, IDXGIAdapter1 ** pp
 	if (*ppAdapter)
 	{
 		hr = D3D12CreateDevice(*ppAdapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&this->m_device));
+		m_device->SetName(L"DX12_DEVICE");
 	}
 	else
 	{
@@ -284,14 +284,18 @@ HRESULT D3D12Wrap::_createCommandQueues()
 	HRESULT hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_directQ));
 	if (FAILED(hr))
 		return hr;
+	m_directQ->SetName(L"Direct Command Queue");
 
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 	hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_copyQ));
 	if (FAILED(hr))
 		return hr;
+	m_copyQ->SetName(L"Copy Command Queue");
 
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	return m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_computeQ));
+	hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_computeQ));
+	m_computeQ->SetName(L"Compute Command Queue");
+	return hr;
 }
 
 HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
@@ -302,6 +306,7 @@ HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 
 	if (FAILED(hr))
 		return hr;
+	m_directAllocator->SetName(L"Direct Allocator");
 
 	hr = m_device->CreateCommandList(
 		0,
@@ -314,11 +319,13 @@ HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 	if (SUCCEEDED(hr))
 		m_gCmdList->Close();
 
+	m_gCmdList->SetName(L"Direct Command List");
+
 	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&m_copyAllocator));
 
 	if (FAILED(hr))
 		return hr;
-
+	m_copyAllocator->SetName(L"Copy Allocator");
 	hr = m_device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_COPY,
@@ -329,12 +336,13 @@ HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 
 	if (SUCCEEDED(hr))
 		m_cpyCmdList->Close();
-	
+	m_cpyCmdList->SetName(L"Copy Command List");
+
 	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeAllocator));
 
 	if (FAILED(hr))
 		return hr;
-
+	m_computeAllocator->SetName(L"Compute Allocator");
 	hr = m_device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_COMPUTE,
@@ -345,6 +353,7 @@ HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 
 	if (SUCCEEDED(hr))
 		m_comCmdList->Close();
+	m_comCmdList->SetName(L"Compute Command List");
 
 	return hr;
 }
@@ -378,6 +387,7 @@ HRESULT D3D12Wrap::_createSwapChain(HWND hwnd, unsigned int width, unsigned int 
 		reinterpret_cast<IDXGISwapChain1**>(&m_swapChain)
 	);
 
+	
 	return hr;
 }
 
@@ -393,6 +403,7 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 	hr = m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_rtvHeap));
 	if (FAILED(hr))
 		return hr;
+	m_rtvHeap->SetName(L"RTV HEAP");
 
 	D3D12_DESCRIPTOR_HEAP_DESC heapDescriptorDesc = {};
 	heapDescriptorDesc.NumDescriptors = BUFFER_COUNT;
@@ -402,15 +413,18 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_uavHeap));
 	if (FAILED(hr))
 		return hr;
+	m_uavHeap->SetName(L"UAV HEAP");
 
 	heapDescriptorDesc.NumDescriptors = 1; //We only have one Bitmap Image to take care of
 	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_srvHeap));
 	if (FAILED(hr))
 		return hr;
+	m_srvHeap->SetName(L"SRV HEAP");
 
 	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_cbvHeap)); //We only have one CB too AFAIK
 	if (FAILED(hr))
 		return hr;
+	m_cbvHeap->SetName(L"CBV HEAP");
 
 	//Create resources for render targets
 	m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -435,11 +449,12 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 	for (UINT i = 0; i < BUFFER_COUNT; i++)
 	{
 		hr = m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i]));
+		m_renderTargets[i]->SetName((std::wstring(L"BackBuffer_") + std::to_wstring(i)).c_str());
 		if (SUCCEEDED(hr))
 		{
 			m_device->CreateRenderTargetView(m_renderTargets[i], nullptr, cdh);
 			cdh.ptr += m_rtvDescSize;
-
+			
 			uavDesc = m_renderTargets[i]->GetDesc();
 			uavDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -457,6 +472,7 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 			{
 				m_device->CreateUnorderedAccessView(m_UAVs[i], nullptr, nullptr, uav_cdh);
 				uav_cdh.ptr += m_uavDescSize;
+				m_UAVs[i]->SetName((std::wstring(L"UAV_") + std::to_wstring(i)).c_str());
 			}
 		}
 	}
@@ -464,15 +480,22 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 }
 
 
-HRESULT D3D12Wrap::_createFence()
+HRESULT D3D12Wrap::_createFences()
 {
 	HRESULT hr = E_FAIL;
-	hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+	hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fences[0].m_fence));
 	if (FAILED(hr))
 		return hr;
-	m_fenceValue = 1;
+	Fences[0].m_fenceValue = 1;
+	Fences[0].m_fence->SetName(L"Compute_Fence");
+	Fences[0].m_fenceEvent = CreateEvent(0, false, false, 0);
 
-	m_fenceEvent = CreateEvent(0, false, false, 0);
+	hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fences[1].m_fence));
+	if (FAILED(hr))
+		return hr;
+	Fences[1].m_fenceValue = 1;
+	Fences[1].m_fence->SetName(L"Direct_Fence");
+	Fences[1].m_fenceEvent = CreateEvent(0, false, false, 0);
 
 	return hr;
 }
@@ -486,23 +509,59 @@ HRESULT D3D12Wrap::_createRootSignature()
 	// 4. How many DWORDs did we use (Max size of 64, or 63 with enabled IA)
 
 	//Start with defining descriptor ranges
-	D3D12_ROOT_DESCRIPTOR  rootDesc[3];
-	ZeroMemory(rootDesc, sizeof(D3D12_ROOT_DESCRIPTOR) * 3);
+	D3D12_DESCRIPTOR_RANGE descRanges[2];
+	{
+		//1 SRV descriptor = 2 DWORDs
+		{
+			descRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			descRanges[0].NumDescriptors = 1; //Only assmuing one texture so far
+			descRanges[0].BaseShaderRegister = 0; // register t0
+			descRanges[0].RegisterSpace = 0; //register(t0, space0);
+			descRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+			descRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			descRanges[1].NumDescriptors = 1; //Only assmuing one UAV so far
+			descRanges[1].BaseShaderRegister = 0; // register u0
+			descRanges[1].RegisterSpace = 0; //register(u0, space0);
+			descRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		}
+	}
+	//Create necessary Descriptor Tables
+	D3D12_ROOT_DESCRIPTOR_TABLE descTables[2]; //"Only need one so far"?
+	{
+
+		//1 Descriptor Table for the SRV descriptor = 1 DWORD
+		{
+			descTables[0].NumDescriptorRanges = 1;//_ARRAYSIZE(descRanges); //how many descriptors for this table
+			descTables[0].pDescriptorRanges = &descRanges[0]; //pointer to descriptor array
+		}
+		//1 Descriptor table for the UAV descriptor
+		{
+			descTables[1].NumDescriptorRanges = 1;//_ARRAYSIZE(descRanges); //how many descriptors for this table
+			descTables[1].pDescriptorRanges = &descRanges[1]; //pointer to descriptor array
+		}
+	}
+
+	//This is the constant buffer
+	D3D12_ROOT_CONSTANTS rootConstants[1];
+	rootConstants[0].Num32BitValues = 1;
+	rootConstants[0].RegisterSpace = 0;
+	rootConstants[0].ShaderRegister = 0;
 
 	D3D12_ROOT_PARAMETER rootParams[3];
 	{
-		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-		rootParams[0].Descriptor = rootDesc[0];
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[0].DescriptorTable = descTables[0];
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
-		rootParams[0].Descriptor = rootDesc[0];
-		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[1].DescriptorTable = descTables[1];
+		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-		rootParams[0].Descriptor = rootDesc[0];
-		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		//Total of 6 DWORD
+		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		rootParams[2].Constants = rootConstants[0];
+		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		//Total of 3 DWORD
 	}
 
 
@@ -546,5 +605,7 @@ HRESULT D3D12Wrap::_createRootSignature()
 	}
 	//Use d3d12 device to create the root signature
 	UINT nodeMask = 0;
+	
 	return this->m_device->CreateRootSignature(nodeMask, pSerBlob->GetBufferPointer(), pSerBlob->GetBufferSize(), IID_PPV_ARGS(&this->m_rootSignature));
 }
+

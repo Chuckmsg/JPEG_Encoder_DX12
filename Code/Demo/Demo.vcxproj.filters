@@ -60,6 +60,9 @@
     <ClInclude Include="..\Shared\ComputeShader.h">
       <Filter>Shared</Filter>
     </ClInclude>
+    <ClInclude Include="..\Shared\DX_12Helper.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Bin\Shaders\Backbuffer_CS.hlsl">

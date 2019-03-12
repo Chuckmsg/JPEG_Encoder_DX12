@@ -10,6 +10,7 @@
 #include <d3dcompiler.h>
 
 #include "..\Demo\D3DWrap\D3DWrap.h"
+#include "DX_12Helper.h"
 
 #include <tchar.h>
 
@@ -192,7 +193,6 @@ public:
 	ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines, bool dx12 = false);
 
 	ID3D11Buffer* CreateConstantBuffer(UINT uSize, VOID* pInitData, char* debugName = NULL);
-	ID3D12Resource* CreateConstantBufferDX12(ID3D12DescriptorHeap * pHeap, UINT uSize, void* pInitialData, char * debugName = NULL);
 
 	ComputeBuffer* CreateBuffer(COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
 		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
