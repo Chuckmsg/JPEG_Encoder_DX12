@@ -13,9 +13,19 @@ class JpegEncoderGPU_444 : public JpegEncoderGPU
 {
 public:
 	JpegEncoderGPU_444(ID3D11Device* d3dDevice,	ID3D11DeviceContext* d3dContext);
-	// Using dx12 instead of dx11
-	JpegEncoderGPU_444(ID3D12Device* d3dDevice, ID3D12DeviceContext* d3dContext);
 	virtual ~JpegEncoderGPU_444();
+
+	virtual bool Init();
+
+private:
+	virtual void DoEntropyEncode();
+};
+
+class DX12_JpegEncoderGPU_444 : public DX12_JpegEncoderGPU
+{
+public:
+	DX12_JpegEncoderGPU_444(ID3D12Device* d3dDevice, ID3D12DeviceContext* d3dContext);
+	virtual ~DX12_JpegEncoderGPU_444();
 
 	virtual bool Init();
 

@@ -90,6 +90,7 @@ protected:
 
 	virtual void WriteImageData(JEncRGBDataDesc rgbDataDesc);
 	virtual void WriteImageData(JEncD3DDataDesc d3dDataDesc);
+	virtual void WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) {}; // empty, is needed from the JpegEncoderBase
 
 	void DoQuantization(ID3D11ShaderResourceView* pSRV);
 
@@ -125,35 +126,38 @@ protected:
 	ID3D12Device*				mD3DDevice;
 	ID3D12DeviceContext*		mD3DDeviceContext;
 
+	// Command lists
+	ID3D12GraphicsCommandList*	mCommandList;
+
 	//Constant buffers holding image and compute information
 	//ID3D11Buffer = ID3D12ShaderReflectionConstantBuffer?
-	ID3D12ShaderReflectionConstantBuffer*	mCB_ImageData_Y;
-	ID3D12ShaderReflectionConstantBuffer*	mCB_ImageData_CbCr;
+	ID3D12Resource*				mCB_ImageData_Y;
+	ID3D12Resource*				mCB_ImageData_CbCr;
 
 	//Compute shaders for each ycbcr component
-	ComputeWrap*				mComputeSys;
-	ComputeShader*				mShader_Y_Component;
-	ComputeShader*				mShader_Cb_Component;
-	ComputeShader*				mShader_Cr_Component;
+	DX12_ComputeWrap*				mComputeSys;
+	DX12_ComputeShader*				mShader_Y_Component;
+	DX12_ComputeShader*				mShader_Cb_Component;
+	DX12_ComputeShader*				mShader_Cr_Component;
 
 	//Output UAV
-	ComputeBuffer*				mCB_EntropyResult;
+	DX12_ComputeBuffer*				mCB_EntropyResult;
 
 	//Huffman tables, structured buffers
-	ComputeBuffer*				mCB_Huff_Y_AC;
-	ComputeBuffer*				mCB_Huff_CbCr_AC;
+	DX12_ComputeBuffer*				mCB_Huff_Y_AC;
+	DX12_ComputeBuffer*				mCB_Huff_CbCr_AC;
 
 	//DCT and Quantization data, one for Y and one for CbCr, structured buffers
-	ComputeBuffer*				mCB_DCT_Matrix;
-	ComputeBuffer*				mCB_DCT_Matrix_Transpose;
-	ComputeBuffer*				mCB_Y_Quantization_Table;
-	ComputeBuffer*				mCB_CbCr_Quantization_Table;
+	DX12_ComputeBuffer*				mCB_DCT_Matrix;
+	DX12_ComputeBuffer*				mCB_DCT_Matrix_Transpose;
+	DX12_ComputeBuffer*				mCB_Y_Quantization_Table;
+	DX12_ComputeBuffer*				mCB_CbCr_Quantization_Table;
 
 	//sampler state used to repeat border pixels
-	D3D12_CPU_DESCRIPTOR_HANDLE*	mCB_SamplerState_PointClamp;
+	ID3D12DescriptorHeap*	mCB_SamplerState_PointClamp;
 	
 	//Texture used if RGB data sent for encoding
-	ComputeTexture*				mCT_RGBA;
+	DX12_ComputeTexture*				mCT_RGBA;
 
 	TCHAR						mComputeShaderFile[4096];
 
@@ -185,7 +189,8 @@ protected:
 	void DoHuffmanEncoding(int* DU, short& prevDC, BitString* HTDC);
 
 	virtual void WriteImageData(JEncRGBDataDesc rgbDataDesc);
-	virtual void WriteImageData(JEncD3DDataDesc d3dDataDesc);
+	virtual void WriteImageData(JEncD3DDataDesc d3dDataDesc) {}; // empty, is needed from the JpegEncoderBase
+	virtual void WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc);
 	
 	void DoQuantization(ID3D12DescriptorHeap* pSRV);
 

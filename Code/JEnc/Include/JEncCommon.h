@@ -64,6 +64,19 @@ struct JEncD3DDataDesc
 	}
 };
 
+struct DX12_JEncD3DDataDesc
+{
+	struct ID3D12DescriptorHeap* ResourceView;
+	unsigned int Width;
+	unsigned int Height;
+	unsigned char* TargetMemory;
+
+	DX12_JEncD3DDataDesc()
+	{
+		memset(this, 0, sizeof(DX12_JEncD3DDataDesc));
+	}
+};
+
 struct JEncResult
 {
 	void* Bits;

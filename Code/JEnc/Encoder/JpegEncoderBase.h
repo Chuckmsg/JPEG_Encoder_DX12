@@ -27,6 +27,7 @@ public:
 
 	JEncResult Encode(JEncRGBDataDesc rgbDataDesc, int quality);
 	JEncResult Encode(JEncD3DDataDesc d3dDataDesc, int quality);
+	JEncResult Encode(DX12_JEncD3DDataDesc d3dDataDesc, int quality);
 
 	virtual bool Init() { return true; }
 
@@ -34,6 +35,7 @@ protected:
 
 	virtual void WriteImageData(JEncRGBDataDesc rgbDataDesc) = 0;
 	virtual void WriteImageData(JEncD3DDataDesc d3dDataDesc) = 0;
+	virtual void WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) = 0;
 	virtual void Reset();
 
 	int				MemoryFileCapacity;

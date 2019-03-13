@@ -47,11 +47,11 @@ DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSA
 	if (encoderType == GPU_ENCODER)
 	{
 		if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_4_4)
-			enc = myNew JpegEncoderGPU_444(d3dDevice, d3dContext);
+			enc = myNew DX12_JpegEncoderGPU_444(d3dDevice, d3dContext);
 		else if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_2_2)
-			enc = myNew JpegEncoderGPU_422(d3dDevice, d3dContext);
+			enc = myNew DX12_JpegEncoderGPU_422(d3dDevice, d3dContext);
 		else if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_2_0)
-			enc = myNew JpegEncoderGPU_420(d3dDevice, d3dContext);
+			enc = myNew DX12_JpegEncoderGPU_420(d3dDevice, d3dContext);
 	}
 
 	if (enc)

@@ -217,6 +217,34 @@ JEncResult JpegEncoderBase::Encode(JEncD3DDataDesc d3dDataDesc, int quality)
 	return result;
 }
 
+JEncResult JpegEncoderBase::Encode(DX12_JEncD3DDataDesc d3dDataDesc, int quality)
+{
+	JEncResult result;
+	memset(&result, 0, sizeof(result));
+
+	//mSubsampleType = d3dDataDesc.SubsampleType;
+
+	if (!ValidateQuantizationTables(quality))
+		return result;
+
+	CalculateComputationDimensions(d3dDataDesc.Width, d3dDataDesc.Height);
+
+	if (!ValidateMemoryFile(d3dDataDesc.TargetMemory))
+		return result;
+
+	Reset();
+
+	WriteHeader();
+	result.HeaderSize = unsigned int(MemoryFileWalker - MemoryFile);
+
+	WriteImageData(d3dDataDesc);
+
+	result.DataSize = unsigned int(MemoryFileWalker - MemoryFile) - result.HeaderSize;
+	result.Bits = (void*)MemoryFile;
+
+	return result;
+}
+
 void JpegEncoderBase::WriteHeader()
 {
 	//JPG header
