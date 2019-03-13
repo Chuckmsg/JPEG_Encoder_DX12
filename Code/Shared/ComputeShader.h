@@ -132,6 +132,7 @@ public:
 		SAFE_RELEASE(_ResourceView);
 		SAFE_RELEASE(_UnorderedAccessView);
 		SAFE_RELEASE(_Staging);
+		SAFE_RELEASE(m_DX12Resource);
 	}
 private:
 	ComputeTexture(const ComputeBuffer& cb) {}

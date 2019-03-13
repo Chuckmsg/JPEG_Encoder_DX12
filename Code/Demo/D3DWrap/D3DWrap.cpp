@@ -217,22 +217,40 @@ HRESULT D3D12Wrap::Init(HWND hwnd, int width, int height)
 
 	SAFE_RELEASE(factory);
 	SAFE_RELEASE(adapter);
-	//Define the viewport and scissor rect
-	{
-		this->m_viewPort.TopLeftX = 0.f;
-		this->m_viewPort.TopLeftY = 0.f;
-		this->m_viewPort.MinDepth = 0.f;
-		this->m_viewPort.MaxDepth = 1.f;
-		this->m_viewPort.Width = (float)width;
-		this->m_viewPort.Height = (float)height;
-
-		this->m_scissorRect.left = (long)this->m_viewPort.TopLeftX;
-		this->m_scissorRect.top = (long)this->m_viewPort.TopLeftY;
-		this->m_scissorRect.right = (long)this->m_viewPort.Width;
-		this->m_scissorRect.bottom = (long)this->m_viewPort.Height;
-	}
 
 	return hr;
+}
+
+void D3D12Wrap::Cleanup()
+{
+#ifdef _DEBUG
+	SAFE_RELEASE(m_debugController);
+#endif // _DEBUG
+	//Explicitly flush all work on the GPU
+	WaitForGPUCompletion(m_computeQ, &Fences[0]);
+	WaitForGPUCompletion(m_directQ, &Fences[1]);
+
+	SAFE_RELEASE(m_device);
+	SAFE_RELEASE(m_swapChain);
+	SAFE_RELEASE(m_directQ);
+	SAFE_RELEASE(m_computeQ);
+	SAFE_RELEASE(m_directAllocator);
+	SAFE_RELEASE(m_computeAllocator);
+	SAFE_RELEASE(m_gCmdList);
+	SAFE_RELEASE(m_comCmdList);
+	SAFE_RELEASE(m_renderTargets[0]);
+	SAFE_RELEASE(m_renderTargets[1]);
+	SAFE_RELEASE(m_UAVs[0]);
+	SAFE_RELEASE(m_UAVs[1]);
+	SAFE_RELEASE(m_rootSignature);
+	SAFE_RELEASE(m_rtvHeap);
+	SAFE_RELEASE(m_uavHeap);
+	SAFE_RELEASE(m_srvHeap);
+	SAFE_RELEASE(Fences[0].m_fence);
+	SAFE_RELEASE(Fences[1].m_fence);
+
+	CloseHandle(Fences[0].m_fenceEvent);
+	CloseHandle(Fences[1].m_fenceEvent);
 }
 
 IDXGIAdapter1 * D3D12Wrap::_findDX12Adapter(IDXGIFactory5 ** ppFactory)
@@ -286,12 +304,6 @@ HRESULT D3D12Wrap::_createCommandQueues()
 		return hr;
 	m_directQ->SetName(L"Direct Command Queue");
 
-	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-	hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_copyQ));
-	if (FAILED(hr))
-		return hr;
-	m_copyQ->SetName(L"Copy Command Queue");
-
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_computeQ));
 	m_computeQ->SetName(L"Compute Command Queue");
@@ -320,23 +332,6 @@ HRESULT D3D12Wrap::_createCmdAllocatorsAndLists()
 		m_gCmdList->Close();
 
 	m_gCmdList->SetName(L"Direct Command List");
-
-	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&m_copyAllocator));
-
-	if (FAILED(hr))
-		return hr;
-	m_copyAllocator->SetName(L"Copy Allocator");
-	hr = m_device->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_COPY,
-		m_copyAllocator,
-		nullptr,
-		IID_PPV_ARGS(&m_cpyCmdList)
-	);
-
-	if (SUCCEEDED(hr))
-		m_cpyCmdList->Close();
-	m_cpyCmdList->SetName(L"Copy Command List");
 
 	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeAllocator));
 
@@ -421,16 +416,11 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 		return hr;
 	m_srvHeap->SetName(L"SRV HEAP");
 
-	hr = m_device->CreateDescriptorHeap(&heapDescriptorDesc, IID_PPV_ARGS(&m_cbvHeap)); //We only have one CB too AFAIK
-	if (FAILED(hr))
-		return hr;
-	m_cbvHeap->SetName(L"CBV HEAP");
-
 	//Create resources for render targets
-	m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	UINT m_rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	D3D12_CPU_DESCRIPTOR_HANDLE cdh = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 
-	m_uavDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	UINT m_uavDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_CPU_DESCRIPTOR_HANDLE uav_cdh = m_uavHeap->GetCPUDescriptorHandleForHeapStart();
 
 	D3D12_HEAP_PROPERTIES  heapProp;
@@ -464,7 +454,7 @@ HRESULT D3D12Wrap::_createHeapsAndResources()
 				&heapProp,
 				D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
 				&uavDesc,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				D3D12_RESOURCE_STATE_COPY_SOURCE, //this state should never be changed since all we do with this is copying
 				NULL,
 				IID_PPV_ARGS(&m_UAVs[i])
 			);

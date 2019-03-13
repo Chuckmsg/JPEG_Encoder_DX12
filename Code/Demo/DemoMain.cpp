@@ -50,6 +50,8 @@ HRESULT				Cleanup();
 
 HRESULT				InitDX12(HWND hwnd, unsigned int width, unsigned int height);
 HRESULT				RenderDX12(float deltaTime, HWND hwnd);
+void						PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList);
+void						PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList);
 HRESULT				UpdateDX12(float deltaTime, HWND hwnd);
 HRESULT				CreateBackBufferPSO();
 //--------------------------------------------------------------------------------------
@@ -126,9 +128,6 @@ HRESULT Init(HWND hwnd, int width, int height)
 
 HRESULT Cleanup()
 {
-	if (DX12)
-		return S_OK;
-	gSurfacePrep.Cleanup();
 
 	SAFE_RELEASE(gSamplerState);
 	SAFE_RELEASE(gConstantBuffer);
@@ -138,7 +137,16 @@ HRESULT Cleanup()
 	SAFE_DELETE(gBackbufferShader);
 	SAFE_DELETE(gComputeWrap);
 
-	gD3D.Cleanup();
+	if (DX12)
+	{
+		SAFE_RELEASE(gBackBufferPipelineState);
+		gD3D12.Cleanup();
+	}
+	else
+	{
+		gD3D.Cleanup();
+		gSurfacePrep.Cleanup();
+	}
 
 	return S_OK;
 }
@@ -475,21 +483,51 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 {
 	//Get the necessary object pointers 
 		//Compute stuff
-	ID3D12CommandAllocator * pCompCmdAllo = gD3D12.GetComputeAllocator();
 	ID3D12GraphicsCommandList * pCompCmdList = gD3D12.GetComputeCmdList();
+	ID3D12CommandQueue * pCompCmdQ = gD3D12.GetComputeQueue();
+
+		//Direct stuff
+	ID3D12GraphicsCommandList * pDirectCmdList = gD3D12.GetDirectCmdList();
+	ID3D12CommandQueue * pDirectCmdQ = gD3D12.GetDirectQueue();
+
+	//Populate lists with commands
+	PopulateComputeList(pCompCmdList);
+	PopulateDirectList(pDirectCmdList);
+
+	//Execute command lists // WE CAN EXECUTE THIS IN A THREAD SINCE WE ENSURE R/W ACCESS ON THE UAVs
+	ID3D12CommandList* listsToExecute1[] = { pCompCmdList };
+	pCompCmdQ->ExecuteCommandLists(1, listsToExecute1);
+	gD3D12.WaitForGPUCompletion(pCompCmdQ, gD3D12.GetFence(0));
+
+	ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
+	pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
+	gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
+	//present the back buffer
+	DXGI_PRESENT_PARAMETERS pp = {};
+	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
+
+	TCHAR title[200];
+	_stprintf_s(title, sizeof(title) / 2, _T("JPEG DirectCompute Demo | FPS: %.0f | Quality: %d | Output scale: %.2f | Subsampling: %s"),
+		1.0f / deltaTime, (int)gJpegQuality, gOutputScale,
+		gChromaSubsampling == CHROMA_SUBSAMPLE_4_4_4 ? _T("4:4:4") :
+		gChromaSubsampling == CHROMA_SUBSAMPLE_4_2_2 ? _T("4:2:2") :
+		gChromaSubsampling == CHROMA_SUBSAMPLE_4_2_0 ? _T("4:2:0") : _T("Undefined"));
+	SetWindowText(hwnd, title);
+
+	return hr;
+}
+
+void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
+{
+	ID3D12CommandAllocator * pCompCmdAllo = gD3D12.GetComputeAllocator();
 	ID3D12CommandQueue * pCompCmdQ = gD3D12.GetComputeQueue();
 	ID3D12DescriptorHeap * pSRVHeap = gD3D12.GetSRVHeap();
 	ID3D12DescriptorHeap * pUAVHeap = gD3D12.GetUAVHeap();
-		//Direct stuff
-	ID3D12CommandAllocator * pDirectCmdAllo = gD3D12.GetDirectAllocator();
-	ID3D12GraphicsCommandList * pDirectCmdList = gD3D12.GetDirectCmdList();
-	ID3D12CommandQueue * pDirectCmdQ = gD3D12.GetDirectQueue();
-	ID3D12DescriptorHeap * pRTVHeap = gD3D12.GetRTVHeap();
-	
+
 	UINT frameIndex = gD3D12.GetFrameIndex();
 	auto uav_gdh = pUAVHeap->GetGPUDescriptorHandleForHeapStart();
 	uav_gdh.ptr += gD3D12.GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * frameIndex;
-	//Reset 
+
 	pCompCmdAllo->Reset();
 	pCompCmdList->Reset(pCompCmdAllo, gBackBufferPipelineState);
 	//Set the Root Signature
@@ -501,34 +539,33 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 	pCompCmdList->SetComputeRootDescriptorTable(0, pSRVHeap->GetGPUDescriptorHandleForHeapStart());
 	ID3D12DescriptorHeap * uavHeap[] = { pUAVHeap };
 	pCompCmdList->SetDescriptorHeaps(1, uavHeap);
-	pCompCmdList->SetComputeRootDescriptorTable(1, pUAVHeap->GetGPUDescriptorHandleForHeapStart());
+	pCompCmdList->SetComputeRootDescriptorTable(1, uav_gdh);
 
 	//Update the "constant buffer" 
 	pCompCmdList->SetComputeRoot32BitConstants(2, 1, (void*)cbData, 0);
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
-	D3D12_RESOURCE_BARRIER barrier{};
+	D3D12_RESOURCE_BARRIER barrier{}; //This barrier ensure that all R/W operations complete before any future R/W operations can begin
 	MakeResourceBarrier(
 		barrier,
 		D3D12_RESOURCE_BARRIER_TYPE_UAV,
-		gD3D12.GetUnorderedAccessResource(frameIndex),
+		gD3D12.GetUnorderedAccessResource(0),
 		D3D12_RESOURCE_STATES(0), //UAV does not need transition states
 		D3D12_RESOURCE_STATES(0)
 	);
-	pCompCmdList->ResourceBarrier(1, &barrier);
 	//Everything is set now
 	pCompCmdList->Dispatch(25, 25, 1);
+	pCompCmdList->ResourceBarrier(1, &barrier);
 
-	D3D12_RESOURCE_BARRIER cpyBarrierSrc{};
-	MakeResourceBarrier(
-		cpyBarrierSrc,
-		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-		gD3D12.GetUnorderedAccessResource(frameIndex),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COPY_SOURCE
-	);
-	pCompCmdList->ResourceBarrier(1, &cpyBarrierSrc);
 	pCompCmdList->Close();
-	//Now we can start on the copy command list
+}
+
+void PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList)
+{
+	ID3D12CommandAllocator * pDirectCmdAllo = gD3D12.GetDirectAllocator();
+	ID3D12CommandQueue * pDirectCmdQ = gD3D12.GetDirectQueue();
+
+	UINT frameIndex = gD3D12.GetFrameIndex();
+
 	pDirectCmdAllo->Reset();
 	pDirectCmdList->Reset(pDirectCmdAllo, nullptr);
 	pDirectCmdList->SetComputeRootSignature(gD3D12.GetRootSignature());
@@ -543,8 +580,7 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		D3D12_RESOURCE_STATE_COPY_DEST
 	);
 	pDirectCmdList->ResourceBarrier(1, &cpyBarrierDest);
-	//prepare the UAV as copy source
-	//Copy the uav resource to rhe backbuffer resource
+	//Copy the uav resource to the backbuffer resource
 	pDirectCmdList->CopyResource(gD3D12.GetBackBufferResource(frameIndex), gD3D12.GetUnorderedAccessResource(frameIndex));
 	//Set the the last barrier so that the backbuffer is in present state
 	D3D12_RESOURCE_BARRIER cpyBarrierDone{};
@@ -556,22 +592,8 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		D3D12_RESOURCE_STATE_PRESENT
 	);
 	pDirectCmdList->ResourceBarrier(1, &cpyBarrierDone);
+
 	pDirectCmdList->Close();
-
-	//Execute command lists
-	ID3D12CommandList* listsToExecute1[] = { pCompCmdList };
-	pCompCmdQ->ExecuteCommandLists(1, listsToExecute1);
-	gD3D12.WaitForGPUCompletion(pCompCmdQ, gD3D12.GetFence(0));
-
-	ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
-	pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
-	gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
-	//present the back buffer
-	DXGI_PRESENT_PARAMETERS pp = {};
-	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
-	//Wait for GPU to finish before starting next frame
-
-	return hr;
 }
 
 HRESULT UpdateDX12(float deltaTime, HWND hwnd)
