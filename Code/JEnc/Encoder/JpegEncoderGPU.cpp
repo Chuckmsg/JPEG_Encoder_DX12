@@ -463,9 +463,11 @@ int DX12_JpegEncoderGPU::CalculateBufferSize(int quality)
 	return size;
 }
 
-DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Device * d3dDevice, ID3D12DeviceContext * d3dContext)
-	: mD3DDevice(d3dDevice), mD3DDeviceContext(d3dContext)
+DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource)
+	: imageResource(resource)
 {
+	imageResource->GetDevice(__uuidof(ID3D12Device), (void**)(&mD3DDevice));
+
 	_tcscpy_s(mComputeShaderFile, _T("../Shaders/Jpeg_CS.hlsl"));
 
 	mCB_ImageData_Y = NULL;
@@ -491,7 +493,7 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Device * d3dDevice, ID3D12DeviceC
 
 	mDoCreateBuffers = true;
 
-	mComputeSys = new DX12_ComputeWrap(d3dDevice, d3dContext);
+	mComputeSys = new DX12_ComputeWrap(mD3DDevice);
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;
@@ -630,15 +632,15 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 		mCB_DCT_Matrix_Transpose->GetResourceView(),
 		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetResourceView() : NULL 
 	};
-	mCommandList->SetDescriptorHeaps(3, srvHeap);
-	mCommandList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart());
-	mCommandList->SetComputeRootDescriptorTable(1, srvHeap[1]->GetGPUDescriptorHandleForHeapStart());
-	mCommandList->SetComputeRootDescriptorTable(2, srvHeap[2]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(3, srvHeap);
+	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[1]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(2, srvHeap[2]->GetGPUDescriptorHandleForHeapStart());
 	
 	// Set sampler descriptor heap
 	ID3D12DescriptorHeap * samplerHeap[] = { mCB_SamplerState_PointClamp };
-	mCommandList->SetDescriptorHeaps(0, samplerHeap);
-	mCommandList->SetComputeRootDescriptorTable(3, mCB_SamplerState_PointClamp->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(0, samplerHeap);
+	mDirectList->SetComputeRootDescriptorTable(3, mCB_SamplerState_PointClamp->GetGPUDescriptorHandleForHeapStart());
 
 	// Dispatch to GPU compute shader
 	Dispatch();
@@ -673,20 +675,20 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 void DX12_JpegEncoderGPU::Dispatch()
 {
 	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetUnorderedAccessView() };
-	mCommandList->SetDescriptorHeaps(1, uavHeap);
-	mCommandList->SetComputeRootDescriptorTable(4, uavHeap[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(1, uavHeap);
+	mDirectList->SetComputeRootDescriptorTable(4, uavHeap[0]->GetGPUDescriptorHandleForHeapStart());
 
 	ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
 		mCB_Y_Quantization_Table->GetResourceView(), 
 		mCB_Huff_Y_AC->GetResourceView() 
 	};
-	mCommandList->SetDescriptorHeaps(2, srv_Huffman_Y);
-	mCommandList->SetComputeRootDescriptorTable(5, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
-	mCommandList->SetComputeRootDescriptorTable(6, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(2, srv_Huffman_Y);
+	mDirectList->SetComputeRootDescriptorTable(5, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(6, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
 
 	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y };
-	mCommandList->SetDescriptorHeaps(1, cb_ImageData_Y);
-	mCommandList->SetComputeRootDescriptorTable(7, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(1, cb_ImageData_Y);
+	mDirectList->SetComputeRootDescriptorTable(7, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart());
 
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
 	D3D12_RESOURCE_BARRIER barrier{};
@@ -697,30 +699,30 @@ void DX12_JpegEncoderGPU::Dispatch()
 		D3D12_RESOURCE_STATES(0), //UAV does not need transition states
 		D3D12_RESOURCE_STATES(0)
 	);
-	mCommandList->ResourceBarrier(1, &barrier);
+	mDirectList->ResourceBarrier(1, &barrier);
 	
 	// Dispatch Y component
 	mShader_Y_Component->Set();
-	mCommandList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
+	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
 	mShader_Y_Component->Unset();
 
 	ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { mCB_CbCr_Quantization_Table->GetResourceView(), mCB_Huff_CbCr_AC->GetResourceView() };
-	mCommandList->SetDescriptorHeaps(2, srv_Huffman_CbCr);
-	mCommandList->SetComputeRootDescriptorTable(5, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
-	mCommandList->SetComputeRootDescriptorTable(6, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(2, srv_Huffman_CbCr);
+	mDirectList->SetComputeRootDescriptorTable(5, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(6, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
 
 	ID3D12DescriptorHeap * constantBuffer[] = { mCB_ImageData_CbCr };
-	mCommandList->SetDescriptorHeaps(1, constantBuffer);
-	mCommandList->SetComputeRootDescriptorTable(7, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetDescriptorHeaps(1, constantBuffer);
+	mDirectList->SetComputeRootDescriptorTable(7, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart());
 
 	// Dispatch Cb component
 	mShader_Cb_Component->Set();
-	mCommandList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
+	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
 	mShader_Cb_Component->Unset();
 
 	// Dispatch Cr component
 	mShader_Cr_Component->Set();
-	mCommandList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
+	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
 	mShader_Cr_Component->Unset();
 
 	D3D12_RESOURCE_BARRIER cpyBarrierSrc{};
@@ -731,8 +733,8 @@ void DX12_JpegEncoderGPU::Dispatch()
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COPY_SOURCE
 	);
-	mCommandList->ResourceBarrier(1, &cpyBarrierSrc);
-	mCommandList->Close();
+	mDirectList->ResourceBarrier(1, &cpyBarrierSrc);
+	mDirectList->Close();
 }
 
 void DX12_JpegEncoderGPU::FinalizeData()

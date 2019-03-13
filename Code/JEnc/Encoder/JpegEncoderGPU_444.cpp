@@ -84,8 +84,8 @@ void JpegEncoderGPU_444::DoEntropyEncode()
 	mCB_EntropyResult->Unmap();
 }
 
-DX12_JpegEncoderGPU_444::DX12_JpegEncoderGPU_444(ID3D12Device * d3dDevice, ID3D12DeviceContext * d3dContext)
-	: DX12_JpegEncoderGPU(d3dDevice, d3dContext)
+DX12_JpegEncoderGPU_444::DX12_JpegEncoderGPU_444(ID3D12Resource* resource)
+	: DX12_JpegEncoderGPU(resource)
 {
 	mSubsampleType = JENC_CHROMA_SUBSAMPLE_4_4_4;
 }

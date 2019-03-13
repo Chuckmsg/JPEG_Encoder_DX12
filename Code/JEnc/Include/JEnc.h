@@ -18,6 +18,7 @@ extern "C"
 		virtual JEncResult Encode(JEncRGBDataDesc rgbDataDesc, int quality) = 0;
 
 		virtual JEncResult Encode(JEncD3DDataDesc d3dDataDesc, int quality) = 0;
+		virtual JEncResult Encode(DX12_JEncD3DDataDesc d3dDataDesc, int quality) = 0;
 	};
 
 	DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
@@ -25,6 +26,6 @@ extern "C"
 
 	// Create a jpeg encoder instace with directx 12
 	DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
-		struct ID3D12Device* d3dDevice, struct ID3D12DeviceContext* d3dContext);
+		struct ID3D12Resource* resource);
 }
 #endif

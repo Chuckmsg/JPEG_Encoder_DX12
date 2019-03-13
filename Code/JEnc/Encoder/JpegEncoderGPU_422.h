@@ -28,7 +28,7 @@ private:
 class DX12_JpegEncoderGPU_422 : public DX12_JpegEncoderGPU
 {
 public:
-	DX12_JpegEncoderGPU_422(ID3D12Device* d3dDevice, ID3D12DeviceContext* d3dContext);
+	DX12_JpegEncoderGPU_422(ID3D12Resource* resource);
 	virtual ~DX12_JpegEncoderGPU_422();
 
 	virtual bool Init();

@@ -122,12 +122,15 @@ protected:
 		int		EntropyBlockSize;
 	};
 
+	// Image resource
+	ID3D12Resource* imageResource;
+
 	//D3D
 	ID3D12Device*				mD3DDevice;
-	ID3D12DeviceContext*		mD3DDeviceContext;
 
 	// Command lists
-	ID3D12GraphicsCommandList*	mCommandList;
+	ID3D12GraphicsCommandList*	mDirectList;
+	ID3D12GraphicsCommandList*	mCopyList;
 
 	//Constant buffers holding image and compute information
 	//ID3D11Buffer = ID3D12ShaderReflectionConstantBuffer?
@@ -176,7 +179,7 @@ private:
 
 
 public:
-	DX12_JpegEncoderGPU(ID3D12Device* d3dDevice, ID3D12DeviceContext* d3dContext);
+	DX12_JpegEncoderGPU(ID3D12Resource* resource);
 	virtual ~DX12_JpegEncoderGPU();
 
 	virtual bool Init() = 0;
