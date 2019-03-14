@@ -9,6 +9,9 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
+#include "..\Demo\D3DWrap\D3DWrap.h"
+#include "DX_12Helper.h"
+
 //////////// directx 12
 #include <d3d12.h>
 /////////////
@@ -101,6 +104,8 @@ public:
 	void CopyToStaging()
 	{ _D3DContext->CopyResource(_Staging, _Resource); }
 
+	ID3D12Resource * GetDx12Resource() { return m_DX12Resource; }
+
 	template<class T>
 	T* Map()
 	{
@@ -131,6 +136,7 @@ public:
 		SAFE_RELEASE(_ResourceView);
 		SAFE_RELEASE(_UnorderedAccessView);
 		SAFE_RELEASE(_Staging);
+		SAFE_RELEASE(m_DX12Resource);
 	}
 private:
 	ComputeTexture(const ComputeBuffer& cb) {}
@@ -141,6 +147,8 @@ private:
 	ID3D11Texture2D*			_Staging;
 
 	ID3D11DeviceContext*        _D3DContext;
+
+	ID3D12Resource* m_DX12Resource = NULL;
 
 	friend class ComputeWrap;
 };
@@ -153,23 +161,27 @@ class ComputeShader
 	ID3D11DeviceContext*        mD3DDeviceContext;
 
 	ID3D11ComputeShader*		mShader;
+	ID3DBlob* pCompiledShader = NULL;
 private:
 	explicit ComputeShader();
 
 	bool Init(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines,
-		ID3D11Device* d3dDevice, ID3D11DeviceContext*d3dContext);
+		ID3D11Device* d3dDevice = NULL, ID3D11DeviceContext*d3dContext = NULL, bool dx12 = false);
 
 public:
 	~ComputeShader();
 
 	void Set();
 	void Unset();
+	ID3DBlob* GetShaderCode() { return pCompiledShader; }
 };
 
 class ComputeWrap
 {
-	ID3D11Device*               mD3DDevice;
-	ID3D11DeviceContext*        mD3DDeviceContext;
+	ID3D11Device*               mD3DDevice = NULL;
+	ID3D11DeviceContext*        mD3DDeviceContext = NULL;
+
+	D3D12Wrap * m_D3D12Wrap = NULL;
 
 public:
 	ComputeWrap(ID3D11Device* d3dDevice, ID3D11DeviceContext* d3dContext)
@@ -178,7 +190,12 @@ public:
 		mD3DDeviceContext = d3dContext;
 	}
 
-	ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines);
+	ComputeWrap(D3D12Wrap * pD3D12Wrap)
+	{
+		m_D3D12Wrap = pD3D12Wrap;
+	}
+
+	ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines, bool dx12 = false);
 
 	ID3D11Buffer* CreateConstantBuffer(UINT uSize, VOID* pInitData, char* debugName = NULL);
 
@@ -188,7 +205,7 @@ public:
 	ComputeTexture* CreateTexture(DXGI_FORMAT dxFormat,	UINT uWidth,
 		UINT uHeight, UINT uRowPitch, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
 
-	ComputeTexture* CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName = NULL);
+	ComputeTexture* CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName = NULL, bool dx12 = false);
 
 private:
 	ID3D11Buffer* CreateStructuredBuffer(UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
@@ -199,6 +216,8 @@ private:
 
 	//texture functions
 	ID3D11Texture2D* CreateTextureResource(DXGI_FORMAT dxFormat,
+		UINT uWidth, UINT uHeight, UINT uRowPitch, VOID* pInitData);
+	ID3D12Resource* CreateTextureResourceDX12(DXGI_FORMAT dxFormat,
 		UINT uWidth, UINT uHeight, UINT uRowPitch, VOID* pInitData);
 	//ID3D11Buffer* CreateRawBuffer(UINT uSize, VOID* pInitData);
 	ID3D11ShaderResourceView* CreateTextureSRV(ID3D11Texture2D* pTexture);

@@ -73,3 +73,28 @@ public:
 	PreparedSurfaceBits GetValidSurfaceBits(ID3D11Texture2D* texture, float outputScale);
 	void Unmap();
 };
+
+class SurfacePreperationDX12
+{
+public:
+	SurfacePreperationDX12();
+	~SurfacePreperationDX12();
+
+	HRESULT Init(ID3D12Device * device, ID3D12RootSignature * pRoot);
+
+	ID3D12PipelineState * GetPSO() { return m_pso; }
+
+	void Cleanup();
+private:
+	ID3D12Device * m_device			= NULL;
+	ID3D12RootSignature * m_root	= NULL;
+	ID3D12PipelineState * m_pso		= NULL;
+
+	ID3D10Blob * m_vertexShaderCode = NULL;
+	ID3D10Blob * m_pixelShaderCode = NULL;
+
+private:
+	HRESULT _compileVertexShader();
+	HRESULT _compilePixelShader();
+	HRESULT _createPSO();
+};

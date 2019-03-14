@@ -204,6 +204,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\ComputeShader.h" />
+    <ClInclude Include="..\Shared\DX_12Helper.h" />
     <ClInclude Include="D3DWrap\D3DWrap.h" />
     <ClInclude Include="Encoders\Encoder.h" />
     <ClInclude Include="Encoders\EncoderJEnc.h" />

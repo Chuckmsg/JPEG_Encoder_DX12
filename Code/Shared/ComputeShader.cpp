@@ -18,18 +18,19 @@ ComputeShader::ComputeShader()
 ComputeShader::~ComputeShader()
 {
 	SAFE_RELEASE(mShader);
+	SAFE_RELEASE(pCompiledShader);
 	//SAFE_RELEASE(mD3DDevice);
 	//SAFE_RELEASE(mD3DDeviceContext);
 }
 
 bool ComputeShader::Init(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines,
-	ID3D11Device* d3dDevice, ID3D11DeviceContext*d3dContext)
+	ID3D11Device* d3dDevice, ID3D11DeviceContext*d3dContext, bool dx12)
 {
 	HRESULT hr = S_OK;
 	mD3DDevice = d3dDevice;
 	mD3DDeviceContext = d3dContext;
 
-	ID3DBlob* pCompiledShader = NULL;
+	
 	ID3DBlob* pErrorBlob = NULL;
 	
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -56,7 +57,7 @@ bool ComputeShader::Init(TCHAR* shaderFile, char* blobFileAppendix, char* pFunct
 			pCompiledShader->GetBufferSize(), IID_ID3D11ShaderReflection, 
 			(void**) &pReflector);
 		*/
-		if(hr == S_OK)
+		if(hr == S_OK && !dx12)
 		{
 			hr = mD3DDevice->CreateComputeShader(pCompiledShader->GetBufferPointer(),
 				pCompiledShader->GetBufferSize(), NULL, &mShader);
@@ -64,7 +65,7 @@ bool ComputeShader::Init(TCHAR* shaderFile, char* blobFileAppendix, char* pFunct
 	}
 
 	SAFE_RELEASE(pErrorBlob);
-	SAFE_RELEASE(pCompiledShader);
+	
 
     return (hr == S_OK);
 }
@@ -287,34 +288,50 @@ ComputeTexture* ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT uWidth,
 	return texture;
 }
 
-ComputeTexture* ComputeWrap::CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName)
+ComputeTexture* ComputeWrap::CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName, bool dx12)
 {
 	ComputeTexture* texture = new ComputeTexture();
 	texture->_D3DContext = mD3DDeviceContext;
 
 	BITMAPINFOHEADER bitmapInfoHeader;
 	unsigned char* bits = LoadBitmapFileRGBA(textureFilename, &bitmapInfoHeader);
+
 	if(bits != NULL)
 	{
-		texture->_Resource = CreateTextureResource(
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			bitmapInfoHeader.biWidth,
-			bitmapInfoHeader.biHeight,
-			bitmapInfoHeader.biWidth * 4,
-			bits);
-
-		SAFE_DELETE(bits);
-
-		if(texture->_Resource)
+		if (dx12)
 		{
-			texture->_ResourceView = CreateTextureSRV(texture->_Resource);
-		
-			if(debugName)
+			texture->m_DX12Resource = CreateTextureResourceDX12(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				bitmapInfoHeader.biWidth,
+				bitmapInfoHeader.biHeight,
+				bitmapInfoHeader.biWidth * 4,
+				bits
+			);
+
+			SAFE_DELETE(bits);
+		}
+		else
+		{
+			texture->_Resource = CreateTextureResource(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				bitmapInfoHeader.biWidth,
+				bitmapInfoHeader.biHeight,
+				bitmapInfoHeader.biWidth * 4,
+				bits);
+
+			SAFE_DELETE(bits);
+
+			if(texture->_Resource)
 			{
-				if(texture->_Resource)				SetDebugName(texture->_Resource, debugName);
-				if(texture->_Staging)				SetDebugName(texture->_Staging, debugName);
-				if(texture->_ResourceView)			SetDebugName(texture->_ResourceView, debugName);
-				if(texture->_UnorderedAccessView)	SetDebugName(texture->_UnorderedAccessView, debugName);
+				texture->_ResourceView = CreateTextureSRV(texture->_Resource);
+		
+				if(debugName)
+				{
+					if(texture->_Resource)				SetDebugName(texture->_Resource, debugName);
+					if(texture->_Staging)				SetDebugName(texture->_Staging, debugName);
+					if(texture->_ResourceView)			SetDebugName(texture->_ResourceView, debugName);
+					if(texture->_UnorderedAccessView)	SetDebugName(texture->_UnorderedAccessView, debugName);
+				}
 			}
 		}
 	}
@@ -347,6 +364,144 @@ ID3D11Texture2D* ComputeWrap::CreateTextureResource(DXGI_FORMAT dxFormat,
 	{
 
 	}
+
+	return pTexture;
+}
+
+ID3D12Resource * ComputeWrap::CreateTextureResourceDX12(DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData)
+{
+	ID3D12Resource * pTexture = NULL;
+
+	D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.MipLevels = 1;
+	textureDesc.Format = dxFormat;
+	textureDesc.Width = uWidth;
+	textureDesc.Height = uHeight;
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureDesc.Alignment = 0;
+	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	HRESULT hr = m_D3D12Wrap->GetDevice()->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&textureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&pTexture)
+	);
+
+	if (FAILED(hr))
+		return nullptr;
+
+	pTexture->SetName(L"TextureResource");
+
+	//Create GPU upload buffer
+	UINT64 uploadBufferSize = 0;
+	{
+		m_D3D12Wrap->GetDevice()->GetCopyableFootprints(
+			&textureDesc,
+			0,
+			1,
+			0,
+			nullptr,
+			nullptr,
+			nullptr,
+			&uploadBufferSize);
+	}
+
+	heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+	D3D12_RESOURCE_DESC rdBuffer = {};
+	rdBuffer.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	rdBuffer.Alignment = 0;
+	rdBuffer.Width = uploadBufferSize;
+	rdBuffer.Height = 1;
+	rdBuffer.DepthOrArraySize = 1;
+	rdBuffer.MipLevels = 1;
+	rdBuffer.Format = DXGI_FORMAT_UNKNOWN;
+	rdBuffer.SampleDesc.Count = 1;
+	rdBuffer.SampleDesc.Quality = 0;
+	rdBuffer.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	rdBuffer.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	ID3D12Resource* _textureUploadHeap = nullptr;
+
+	hr = m_D3D12Wrap->GetDevice()->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&rdBuffer,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&_textureUploadHeap)
+	);
+
+	// Copy data to the intermediate upload heap and then schedule a copy
+		// from the upload heap to the Texture2D
+	D3D12_SUBRESOURCE_DATA textureData = {};
+	textureData.pData = pInitData;
+	textureData.RowPitch = uWidth * 4 * sizeof(unsigned char); // 4 = size of pixel: rgba.
+	textureData.SlicePitch = textureData.RowPitch * uHeight;
+
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = pTexture;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE; //since we access the srv in compute shader
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	//Get all the necessary D3D12 object pointers
+	ID3D12CommandAllocator * pCmdAllo = m_D3D12Wrap->GetComputeAllocator();
+	ID3D12GraphicsCommandList * pCompCmdList = m_D3D12Wrap->GetComputeCmdList();
+	ID3D12CommandQueue * pCompCmdQ = m_D3D12Wrap->GetComputeQueue();
+	ID3D12DescriptorHeap * pSRVHeap = m_D3D12Wrap->GetSRVHeap();
+
+	pCmdAllo->Reset();
+	pCompCmdList->Reset(pCmdAllo, nullptr);
+
+	//Fill the cmd q with commands
+	pCompCmdList->SetComputeRootSignature(m_D3D12Wrap->GetRootSignature());
+	UpdateSubresources(pCompCmdList, pTexture, _textureUploadHeap, 0, 0, 1, &textureData);
+	pCompCmdList->ResourceBarrier(1, &barrier);
+
+	// Describe and create a SRV for the texture
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	m_D3D12Wrap->GetDevice()->CreateShaderResourceView(
+		pTexture,
+		&srvDesc,
+		pSRVHeap->GetCPUDescriptorHandleForHeapStart()
+	);
+
+	// set the descriptor heap
+	ID3D12DescriptorHeap* descriptorHeaps[] = { pSRVHeap };
+	pCompCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	// set the descriptor table to the descriptor heap (parameter 1, as constant buffer root descriptor is parameter index 0)
+	pCompCmdList->SetComputeRootDescriptorTable(0, pSRVHeap->GetGPUDescriptorHandleForHeapStart());
+
+	//Close the q and execute it
+	pCompCmdList->Close();
+	ID3D12CommandList* ppCommandLists[] = { pCompCmdList };
+	pCompCmdQ->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
+
+	m_D3D12Wrap->WaitForGPUCompletion(pCompCmdQ, m_D3D12Wrap->GetFence(0));
+
+	SAFE_RELEASE(_textureUploadHeap);
 
 	return pTexture;
 }
@@ -528,7 +683,7 @@ void ComputeWrap::SetDebugName(ID3D11DeviceChild* object, char* debugName)
 #endif
 }
 
-ComputeShader* ComputeWrap::CreateComputeShader(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines)
+ComputeShader* ComputeWrap::CreateComputeShader(TCHAR* shaderFile, char* blobFileAppendix, char* pFunctionName, D3D10_SHADER_MACRO* pDefines, bool dx12)
 {
 	ComputeShader* cs = new ComputeShader();
 
@@ -538,10 +693,12 @@ ComputeShader* ComputeWrap::CreateComputeShader(TCHAR* shaderFile, char* blobFil
 		pFunctionName,
 		pDefines,
 		mD3DDevice,
-		mD3DDeviceContext))
+		mD3DDeviceContext,
+		dx12))
 	{
 		SAFE_DELETE(cs);
 	}
 
 	return cs;
 }
+

@@ -15,6 +15,7 @@
 #include <map>
 #include <fstream>
 #include <algorithm>
+#include <assert.h>
 
 #define SAFE_RELEASE(x) if( x ) { (x)->Release(); (x) = NULL; }
 #define SAFE_DELETE(x) if( x ) { delete(x); (x) = NULL; }
@@ -27,6 +28,7 @@
 //--- new dx12 ---
 #include <d3d12.h>
 #include <dxgi1_5.h>
+#include <comdef.h>
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "DXGI.lib")
