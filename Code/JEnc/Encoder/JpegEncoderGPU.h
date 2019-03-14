@@ -138,29 +138,29 @@ protected:
 	ID3D12Resource*				mCB_ImageData_CbCr;
 
 	//Compute shaders for each ycbcr component
-	DX12_ComputeWrap*				mComputeSys;
-	DX12_ComputeShader*				mShader_Y_Component;
-	DX12_ComputeShader*				mShader_Cb_Component;
-	DX12_ComputeShader*				mShader_Cr_Component;
+	/*DX12_*/ComputeWrap*				mComputeSys;
+	/*DX12_*/ComputeShader*				mShader_Y_Component;
+	/*DX12_*/ComputeShader*				mShader_Cb_Component;
+	/*DX12_*/ComputeShader*				mShader_Cr_Component;
 
 	//Output UAV
-	DX12_ComputeBuffer*				mCB_EntropyResult;
+	/*DX12_*/ComputeBuffer*				mCB_EntropyResult;
 
 	//Huffman tables, structured buffers
-	DX12_ComputeBuffer*				mCB_Huff_Y_AC;
-	DX12_ComputeBuffer*				mCB_Huff_CbCr_AC;
+	/*DX12_*/ComputeBuffer*				mCB_Huff_Y_AC;
+	/*DX12_*/ComputeBuffer*				mCB_Huff_CbCr_AC;
 
 	//DCT and Quantization data, one for Y and one for CbCr, structured buffers
-	DX12_ComputeBuffer*				mCB_DCT_Matrix;
-	DX12_ComputeBuffer*				mCB_DCT_Matrix_Transpose;
-	DX12_ComputeBuffer*				mCB_Y_Quantization_Table;
-	DX12_ComputeBuffer*				mCB_CbCr_Quantization_Table;
+	/*DX12_*/ComputeBuffer*				mCB_DCT_Matrix;
+	/*DX12_*/ComputeBuffer*				mCB_DCT_Matrix_Transpose;
+	/*DX12_*/ComputeBuffer*				mCB_Y_Quantization_Table;
+	/*DX12_*/ComputeBuffer*				mCB_CbCr_Quantization_Table;
 
 	//sampler state used to repeat border pixels
 	ID3D12DescriptorHeap*	mCB_SamplerState_PointClamp;
 	
 	//Texture used if RGB data sent for encoding
-	DX12_ComputeTexture*				mCT_RGBA;
+	/*DX12_*/ComputeTexture*				mCT_RGBA;
 
 	TCHAR						mComputeShaderFile[4096];
 

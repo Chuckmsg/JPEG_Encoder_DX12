@@ -39,7 +39,7 @@ DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSA
 	return enc;
 }
 
-DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
+DECLDIR JEnc* DX12_CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
 	struct ID3D12Resource* resource)
 {
 	JpegEncoderBase* enc = NULL;
