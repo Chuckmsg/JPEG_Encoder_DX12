@@ -416,7 +416,7 @@ void DX12_JpegEncoderGPU::ComputationDimensionsChanged()
 	mDoCreateBuffers = true;
 }
 
-void DX12_JpegEncoderGPU::QuantizationTablesChanged()
+void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 {
 	for (int i = 0; i < 64; i++)
 	{
@@ -463,7 +463,7 @@ int DX12_JpegEncoderGPU::CalculateBufferSize(int quality)
 	return size;
 }
 
-DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource)
+DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
 	: imageResource(resource)
 {
 	imageResource->GetDevice(__uuidof(ID3D12Device), (void**)(&mD3DDevice));
@@ -609,7 +609,7 @@ void DX12_JpegEncoderGPU::WriteImageData(JEncRGBDataDesc rgbDataDesc)
 	FinalizeData();
 }
 
-void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc)
+void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr:2 Start point
 {
 	if (mDoCreateBuffers)
 	{
