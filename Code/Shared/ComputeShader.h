@@ -12,10 +12,6 @@
 #include "..\Demo\D3DWrap\D3DWrap.h"
 #include "DX_12Helper.h"
 
-//////////// directx 12
-#include <d3d12.h>
-/////////////
-
 #include <tchar.h>
 
 #ifndef SAFE_RELEASE
