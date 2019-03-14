@@ -763,14 +763,14 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetResourceView() : NULL 
 	};
 	mDirectList->SetDescriptorHeaps(3, srvHeap);
-	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart());
-	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[1]->GetGPUDescriptorHandleForHeapStart());
-	mDirectList->SetComputeRootDescriptorTable(2, srvHeap[2]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart()); // t0
+	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[1]->GetGPUDescriptorHandleForHeapStart()); // t1
+	mDirectList->SetComputeRootDescriptorTable(2, srvHeap[2]->GetGPUDescriptorHandleForHeapStart()); // t2
 	
 	// Set sampler descriptor heap
 	ID3D12DescriptorHeap * samplerHeap[] = { mCB_SamplerState_PointClamp };
 	mDirectList->SetDescriptorHeaps(1, samplerHeap);
-	mDirectList->SetComputeRootDescriptorTable(0, mCB_SamplerState_PointClamp->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(0, mCB_SamplerState_PointClamp->GetGPUDescriptorHandleForHeapStart()); // s0
 
 	// Dispatch to GPU compute shader
 	Dispatch();
@@ -806,19 +806,19 @@ void DX12_JpegEncoderGPU::Dispatch()
 {
 	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetUnorderedAccessView() };
 	mDirectList->SetDescriptorHeaps(1, uavHeap);
-	mDirectList->SetComputeRootDescriptorTable(4, uavHeap[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(0, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
 
 	ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
 		mCB_Y_Quantization_Table->GetResourceView(), 
 		mCB_Huff_Y_AC->GetResourceView() 
 	};
 	mDirectList->SetDescriptorHeaps(2, srv_Huffman_Y);
-	mDirectList->SetComputeRootDescriptorTable(5, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
-	mDirectList->SetComputeRootDescriptorTable(6, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart()); // t3
+	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_Y[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
 	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y };
 	mDirectList->SetDescriptorHeaps(1, cb_ImageData_Y);
-	mDirectList->SetComputeRootDescriptorTable(7, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(0, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart()); // b0
 
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
 	D3D12_RESOURCE_BARRIER barrier{};
@@ -836,14 +836,17 @@ void DX12_JpegEncoderGPU::Dispatch()
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
 	mShader_Y_Component->Unset();
 
-	ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { mCB_CbCr_Quantization_Table->GetResourceView(), mCB_Huff_CbCr_AC->GetResourceView() };
+	ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
+		mCB_CbCr_Quantization_Table->GetResourceView(), 
+		mCB_Huff_CbCr_AC->GetResourceView() 
+	};
 	mDirectList->SetDescriptorHeaps(2, srv_Huffman_CbCr);
-	mDirectList->SetComputeRootDescriptorTable(5, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
-	mDirectList->SetComputeRootDescriptorTable(6, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart()); // t3
+	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_CbCr[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
 	ID3D12DescriptorHeap * constantBuffer[] = { mCB_ImageData_CbCr };
 	mDirectList->SetDescriptorHeaps(1, constantBuffer);
-	mDirectList->SetComputeRootDescriptorTable(7, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart());
+	mDirectList->SetComputeRootDescriptorTable(0, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart()); // bo
 
 	// Dispatch Cb component
 	mShader_Cb_Component->Set();
