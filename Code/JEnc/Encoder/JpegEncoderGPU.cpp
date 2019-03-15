@@ -582,6 +582,113 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	return mD3DDevice->CreateRootSignature(nodeMask, pSerBlob->GetBufferPointer(), pSerBlob->GetBufferSize(), IID_PPV_ARGS(&mRootSignature));
 }
 
+HRESULT DX12_JpegEncoderGPU::createAllocatorQueueList()
+{
+	// Create direct allocator, command queue and command list
+	D3D12_COMMAND_QUEUE_DESC descDirectQueue = { D3D12_COMMAND_LIST_TYPE_DIRECT, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
+	
+	mD3DDevice->CreateCommandQueue(&descDirectQueue, IID_PPV_ARGS(&mDirectQueue));
+
+	mD3DDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mDirectAllocator));
+
+	mD3DDevice->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		mDirectAllocator,
+		mPSO_Y_Component,
+		IID_PPV_ARGS(&mDirectList)
+	);
+
+	// Create copy allocator, command queue and command list
+	D3D12_COMMAND_QUEUE_DESC descCopyQueue = { D3D12_COMMAND_LIST_TYPE_COPY, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
+
+	mD3DDevice->CreateCommandQueue(&descCopyQueue, IID_PPV_ARGS(&mCopyQueue));
+
+	mD3DDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCopyAllocator));
+
+	mD3DDevice->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_COPY,
+		mCopyAllocator,
+		mPSO_Y_Component,
+		IID_PPV_ARGS(&mCopyList)
+	);
+
+	return E_NOTIMPL;
+}
+
+HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
+{
+	HRESULT hr = S_OK;
+	HWND wHnd = GetActiveWindow();
+	assert(wHnd);
+
+	// Create compute pipeline state for the Y component
+	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Y = {};
+	descComputePSO_Y.pRootSignature = mRootSignature;
+	descComputePSO_Y.CS.pShaderBytecode = mShader_Y_Component.GetShaderCode().data();
+	descComputePSO_Y.CS.BytecodeLength = mShader_Y_Component.GetShaderCode().size();
+
+	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Y, IID_PPV_ARGS(&mPSO_Y_Component));
+	if (FAILED(hr))
+	{
+		PostMessageBoxOnError(hr, L"Failed to create compute PSO for the Y component: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
+	}
+	mPSO_Y_Component->SetName(L"Compute PSO Y Component");
+
+	// Create compute pipeline state for the Cb component
+	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cb = {};
+	descComputePSO_Cb.pRootSignature = mRootSignature;
+	descComputePSO_Cb.CS.pShaderBytecode = mShader_Cb_Component.GetShaderCode().data();
+	descComputePSO_Cb.CS.BytecodeLength = mShader_Cb_Component.GetShaderCode().size();
+
+	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cb, IID_PPV_ARGS(&mPSO_Cb_Component));
+	if (FAILED(hr))
+	{
+		PostMessageBoxOnError(hr, L"Failed to create compute PSO for the Cb component: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
+	}
+	mPSO_Cb_Component->SetName(L"Compute PSO Y Component");
+
+	// Create compute pipeline state for the Cr component
+	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cr = {};
+	descComputePSO_Cr.pRootSignature = mRootSignature;
+	descComputePSO_Cr.CS.pShaderBytecode = mShader_Cr_Component.GetShaderCode().data();
+	descComputePSO_Cr.CS.BytecodeLength = mShader_Cr_Component.GetShaderCode().size();
+
+	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cr, IID_PPV_ARGS(&mPSO_Cr_Component));
+	if (FAILED(hr))
+	{
+		PostMessageBoxOnError(hr, L"Failed to create compute PSO for the Cr component: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
+	}
+	mPSO_Cr_Component->SetName(L"Compute PSO Y Component");
+
+	return S_OK;
+}
+
+void DX12_JpegEncoderGPU::shutdown()
+{
+	SafeRelease(&mRootSignature);
+
+	// Image resource
+	SafeRelease(&imageResource);
+
+	// Pipeline State object
+	SafeRelease(&mPSO_Y_Component);
+	SafeRelease(&mPSO_Cb_Component);
+	SafeRelease(&mPSO_Cr_Component);
+
+	// Command lists
+	SafeRelease(&mDirectQueue);
+	SafeRelease(&mCopyQueue);
+	SafeRelease(&mDirectAllocator);
+	SafeRelease(&mCopyAllocator);
+	SafeRelease(&mDirectList);
+	SafeRelease(&mCopyList);
+}
+
 DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
 	: imageResource(resource)
 {
@@ -627,6 +734,22 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
 		PostMessageBoxOnError(hr, L"Failed to create Root Signature: ", L"Fatal error", MB_ICONERROR, wHnd);
 		exit(-1);
 	}
+
+	// Create the PSOs
+	hr = createPiplineStateObjects();
+	if (FAILED(hr))
+	{
+		PostMessageBoxOnError(hr, L"Failed to create PSOs: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
+	}
+
+	// Create the allocators, queues and lists
+	hr = createAllocatorQueueList();
+	if (FAILED(hr))
+	{
+		PostMessageBoxOnError(hr, L"Failed to create Allocators, Queues and Lists: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
+	}
 }
 
 DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
@@ -634,6 +757,7 @@ DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
 	ReleaseQuantizationBuffers();
 	ReleaseBuffers();
 	ReleaseShaders();
+	shutdown();
 }
 
 void DX12_JpegEncoderGPU::ReleaseBuffers()
@@ -756,6 +880,12 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 
 void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 {
+	ThrowIfFailed(mDirectAllocator->Reset());
+	ThrowIfFailed(mDirectList->Reset(mDirectAllocator, mPSO_Y_Component));
+	
+	// Set necessary state.
+	mDirectList->SetComputeRootSignature(mRootSignature);
+
 	//Set the SRV and UAV descriptor heaps
 	ID3D12DescriptorHeap * srvHeap[] = { 
 		mCB_DCT_Matrix->GetResourceView(),
@@ -832,6 +962,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 	mDirectList->ResourceBarrier(1, &barrier);
 	
 	// Dispatch Y component
+	mDirectList->SetPipelineState(mPSO_Y_Component);
 	mShader_Y_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
 	mShader_Y_Component->Unset();
@@ -849,11 +980,13 @@ void DX12_JpegEncoderGPU::Dispatch()
 	mDirectList->SetComputeRootDescriptorTable(0, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart()); // bo
 
 	// Dispatch Cb component
+	mDirectList->SetPipelineState(mPSO_Cb_Component);
 	mShader_Cb_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
 	mShader_Cb_Component->Unset();
 
 	// Dispatch Cr component
+	mDirectList->SetPipelineState(mPSO_Cr_Component);
 	mShader_Cr_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
 	mShader_Cr_Component->Unset();

@@ -128,7 +128,16 @@ protected:
 	//D3D
 	ID3D12Device*				mD3DDevice;
 
+	// Pipeline State object
+	ID3D12PipelineState* mPSO_Y_Component = nullptr;
+	ID3D12PipelineState* mPSO_Cb_Component = nullptr;
+	ID3D12PipelineState* mPSO_Cr_Component = nullptr;
+
 	// Command lists
+	ID3D12CommandQueue* mDirectQueue = nullptr;
+	ID3D12CommandQueue* mCopyQueue = nullptr;
+	ID3D12CommandAllocator * mDirectAllocator = nullptr;
+	ID3D12CommandAllocator * mCopyAllocator = nullptr;
 	ID3D12GraphicsCommandList*	mDirectList;
 	ID3D12GraphicsCommandList*	mCopyList;
 
@@ -182,6 +191,9 @@ private:
 
 	// New functions
 	HRESULT createRootSignature();
+	HRESULT createAllocatorQueueList();
+	HRESULT createPiplineStateObjects();
+	void shutdown();
 
 public:
 	DX12_JpegEncoderGPU(ID3D12Resource* resource);
