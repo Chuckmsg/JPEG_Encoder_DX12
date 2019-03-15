@@ -193,6 +193,7 @@ private:
 	HRESULT createRootSignature();
 	HRESULT createAllocatorQueueList();
 	HRESULT createPiplineStateObjects();
+	void UpdateQuantizationTable(DX12_ComputeBuffer* quantizationTable, float* quantizationTableFloat);
 	void shutdown();
 
 public:

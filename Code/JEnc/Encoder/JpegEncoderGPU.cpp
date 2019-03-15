@@ -424,27 +424,23 @@ void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 		CbCr_Quantization_Table_Float[i] = (float)CbCr_Quantization_Table[i];
 	}
 
-	D3D11_BOX box;
-	box.left = 0;
-	box.right = sizeof(float) * 64;
-	box.top = 0;
-	box.bottom = 1;
-	box.front = 0;
-	box.back = 1;
-
-
 	ReleaseQuantizationBuffers();
 
 	if (mCB_Y_Quantization_Table == NULL)
 		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
 	else
-		mD3DDeviceContext->UpdateSubresource(mCB_Y_Quantization_Table->GetResource(), 0, &box, Y_Quantization_Table_Float, 0, 0);
+	{
+		UpdateQuantizationTable(mCB_Y_Quantization_Table, Y_Quantization_Table_Float);
+	}
 
 	if (mCB_CbCr_Quantization_Table == NULL)
 		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
 	else
-		mD3DDeviceContext->UpdateSubresource(mCB_CbCr_Quantization_Table->GetResource(), 0, &box, CbCr_Quantization_Table_Float, 0, 0);
+	{
+		UpdateQuantizationTable(mCB_Y_Quantization_Table, CbCr_Quantization_Table_Float);
+	}
 	
+
 	mDoCreateBuffers = true;
 }
 
@@ -666,6 +662,76 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	mPSO_Cr_Component->SetName(L"Compute PSO Y Component");
 
 	return S_OK;
+}
+
+void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizationTable, float* quantizationTableFloat)
+{
+	// Create the GPU upload buffer
+	UINT64 uploadBufferSize = 0;
+	{
+		mD3DDevice->GetCopyableFootprints(
+			&mCB_Y_Quantization_Table->GetResource()->GetDesc(),
+			0,
+			1,
+			0,
+			nullptr,
+			nullptr,
+			nullptr,
+			&uploadBufferSize);
+	}
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC rdBuffer = {};
+	rdBuffer.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	rdBuffer.Alignment = 0;
+	rdBuffer.Width = uploadBufferSize;
+	rdBuffer.Height = 1;
+	rdBuffer.DepthOrArraySize = 1;
+	rdBuffer.MipLevels = 1;
+	rdBuffer.Format = DXGI_FORMAT_UNKNOWN;
+	rdBuffer.SampleDesc.Count = 1;
+	rdBuffer.SampleDesc.Quality = 0;
+	rdBuffer.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	rdBuffer.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	ID3D12Resource* uploadHeap;
+	ThrowIfFailed(mD3DDevice->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&rdBuffer,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&uploadHeap)
+	));
+
+	// Copy data to the intermediate upload heap and then schedule a copy
+	// from the upload heap to the Quantization Table(DX12_ComputeBuffer)
+	D3D12_SUBRESOURCE_DATA data = {};
+	data.pData = Y_Quantization_Table_Float;
+	data.RowPitch = 64 * sizeof(unsigned char);
+	data.SlicePitch = data.RowPitch * 1;
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	MakeResourceBarrier(
+		barrier,
+		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+		mCB_CbCr_Quantization_Table->GetResource(),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_COPY_SOURCE // Do not know if this is correct
+	);
+
+	ThrowIfFailed(mDirectAllocator->Reset());
+	ThrowIfFailed(mDirectList->Reset(mDirectAllocator, nullptr));
+	mDirectList->SetGraphicsRootSignature(mRootSignature);
+
+	UpdateSubresources(mDirectList, mCB_CbCr_Quantization_Table->GetResource(), uploadHeap, 0, 0, 1, &data);
+	mDirectList->ResourceBarrier(1, &barrier);
 }
 
 void DX12_JpegEncoderGPU::shutdown()
@@ -905,6 +971,8 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	// Dispatch to GPU compute shader
 	Dispatch();
 
+	ID3D12CommandList* listsToExecute[] = { mDirectList };
+	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
 
 	/*ID3D11ShaderResourceView* aRViews[] =
 	{
