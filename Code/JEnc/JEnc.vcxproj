@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\ComputeShader.h" />
+    <ClInclude Include="..\Shared\DX12_ComputeShader.h" />
+    <ClInclude Include="..\Shared\DX12_Helper.h" />
     <ClInclude Include="..\Shared\JpegCommon.h" />
     <ClInclude Include="Encoder\JpegEncoderBase.h" />
     <ClInclude Include="Encoder\JpegEncoderGPU.h" />
@@ -32,6 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Shared\ComputeShader.cpp" />
+    <ClCompile Include="..\Shared\DX12_ComputeShader.cpp" />
     <ClCompile Include="Encoder\JpegEncoderBase.cpp" />
     <ClCompile Include="Encoder\JpegEncoderGPU.cpp" />
     <ClCompile Include="Encoder\JpegEncoderGPU_420.cpp" />

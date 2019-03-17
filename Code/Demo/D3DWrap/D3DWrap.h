@@ -37,5 +37,31 @@ public:
 
 class D3D12Wrap
 {
+public:
+	struct DX12Fence
+	{
+		// Synchronization objects
+		UINT m_frameIndex = 0;
+		HANDLE m_fenceEvent = NULL;
+		ID3D12Fence * m_fence = NULL;
+		UINT64 m_fenceValue = 0;
+	};
 
+	DX12Fence * GetFence(UINT index) { return &m_fences[index]; }
+
+	inline void WaitForGPUCompletion(ID3D12CommandQueue * pCmdQ, DX12Fence * fence)
+	{
+		const UINT64 fenceValue = fence->m_fenceValue;
+		pCmdQ->Signal(fence->m_fence, fenceValue);
+		fence->m_fenceValue++;
+
+		if (fence->m_fence->GetCompletedValue() < fenceValue)
+		{
+			fence->m_fence->SetEventOnCompletion(fenceValue, fence->m_fenceEvent);
+			WaitForSingleObject(fence->m_fenceEvent, INFINITE);
+		}
+	}
+
+private:
+	DX12Fence m_fences[2];
 };
