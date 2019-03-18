@@ -21,7 +21,7 @@
 #define SAFE_DELETE(p)      { if (p) { delete (p); (p)=NULL; } }
 #endif
 
-enum COMPUTE_BUFFER_TYPE
+enum DX12_COMPUTE_BUFFER_TYPE
 {
 	STRUCTURED_BUFFER,
 	RAW_BUFFER
@@ -218,7 +218,7 @@ public:
 
 	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap * pHeap, UINT uSize, VOID* pInitData, char* debugName = NULL);
 
-	DX12_ComputeBuffer* CreateBuffer(COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
+	DX12_ComputeBuffer* CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
 		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
 
 	DX12_ComputeTexture* CreateTexture(DXGI_FORMAT dxFormat, UINT uWidth,

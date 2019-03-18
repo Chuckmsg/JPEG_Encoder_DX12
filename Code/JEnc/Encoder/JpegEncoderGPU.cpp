@@ -181,12 +181,12 @@ void JpegEncoderGPU::QuantizationTablesChanged()
 	ReleaseQuantizationBuffers();
 	
 	if(mCB_Y_Quantization_Table == NULL)
-		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
+		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
 	else
 		mD3DDeviceContext->UpdateSubresource(mCB_Y_Quantization_Table->GetResource(), 0, &box, Y_Quantization_Table_Float, 0, 0);
 
 	if(mCB_CbCr_Quantization_Table == NULL)
-		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
+		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
 	else
 		mD3DDeviceContext->UpdateSubresource(mCB_CbCr_Quantization_Table->GetResource(), 0, &box, CbCr_Quantization_Table_Float, 0, 0);
 
@@ -247,7 +247,7 @@ HRESULT JpegEncoderGPU::CreateBuffers()
 	mEntropyBlockSize = CalculateBufferSize(mQualitySetting);
 
 	mCB_EntropyResult = mComputeSys->CreateBuffer(
-		STRUCTURED_BUFFER,
+		COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER,
 		sizeof(int),
 		(mNumComputationBlocks_Y[0] * mNumComputationBlocks_Y[1] + mNumComputationBlocks_CbCr[0] * mNumComputationBlocks_CbCr[1] * 2) * mEntropyBlockSize,
 		false,
@@ -256,11 +256,11 @@ HRESULT JpegEncoderGPU::CreateBuffers()
 		true,
 		"mCB_EntropyResult");
 
-	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(BitString), 256, true, false,  Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
-	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(BitString), 256, true, false,  Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
+	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false,  Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
+	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false,  Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
 		
-	mCB_DCT_Matrix = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
-	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false,  DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
+	mCB_DCT_Matrix = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
+	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false,  DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
 	
 	ImageData id;
 	id.ImageWidth = (float)mImageWidth;
@@ -364,7 +364,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	mEntropyBlockSize = CalculateBufferSize(mQualitySetting);
 
 	mCB_EntropyResult = mComputeSys->CreateBuffer(
-		STRUCTURED_BUFFER,
+		DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER,
 		sizeof(int),
 		(mNumComputationBlocks_Y[0] * mNumComputationBlocks_Y[1] + mNumComputationBlocks_CbCr[0] * mNumComputationBlocks_CbCr[1] * 2) * mEntropyBlockSize,
 		false, // SRV
@@ -373,11 +373,11 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 		true,
 		"mCB_EntropyResult");
 
-	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
-	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
+	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
+	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
 
-	mCB_DCT_Matrix = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
-	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
+	mCB_DCT_Matrix = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
+	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
 
 	ImageData id;
 	id.ImageWidth = (float)mImageWidth;
@@ -622,8 +622,8 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	// Create compute pipeline state for the Y component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Y = {};
 	descComputePSO_Y.pRootSignature = mRootSignature;
-	descComputePSO_Y.CS.pShaderBytecode = mShader_Y_Component.GetShaderCode().data();
-	descComputePSO_Y.CS.BytecodeLength = mShader_Y_Component.GetShaderCode().size();
+	descComputePSO_Y.CS.pShaderBytecode = mShader_Y_Component->GetShaderCode().data();
+	descComputePSO_Y.CS.BytecodeLength = mShader_Y_Component->GetShaderCode().size();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Y, IID_PPV_ARGS(&mPSO_Y_Component));
 	if (FAILED(hr))
@@ -636,8 +636,8 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	// Create compute pipeline state for the Cb component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cb = {};
 	descComputePSO_Cb.pRootSignature = mRootSignature;
-	descComputePSO_Cb.CS.pShaderBytecode = mShader_Cb_Component.GetShaderCode().data();
-	descComputePSO_Cb.CS.BytecodeLength = mShader_Cb_Component.GetShaderCode().size();
+	descComputePSO_Cb.CS.pShaderBytecode = mShader_Cb_Component->GetShaderCode().data();
+	descComputePSO_Cb.CS.BytecodeLength = mShader_Cb_Component->GetShaderCode().size();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cb, IID_PPV_ARGS(&mPSO_Cb_Component));
 	if (FAILED(hr))
@@ -650,8 +650,8 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	// Create compute pipeline state for the Cr component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cr = {};
 	descComputePSO_Cr.pRootSignature = mRootSignature;
-	descComputePSO_Cr.CS.pShaderBytecode = mShader_Cr_Component.GetShaderCode().data();
-	descComputePSO_Cr.CS.BytecodeLength = mShader_Cr_Component.GetShaderCode().size();
+	descComputePSO_Cr.CS.pShaderBytecode = mShader_Cr_Component->GetShaderCode().data();
+	descComputePSO_Cr.CS.BytecodeLength = mShader_Cr_Component->GetShaderCode().size();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cr, IID_PPV_ARGS(&mPSO_Cr_Component));
 	if (FAILED(hr))
@@ -670,7 +670,7 @@ void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizat
 	UINT64 uploadBufferSize = 0;
 	{
 		mD3DDevice->GetCopyableFootprints(
-			&mCB_Y_Quantization_Table->GetResource()->GetDesc(),
+			&quantizationTable->GetResource()->GetDesc(),
 			0,
 			1,
 			0,
@@ -713,7 +713,7 @@ void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizat
 	// Copy data to the intermediate upload heap and then schedule a copy
 	// from the upload heap to the Quantization Table(DX12_ComputeBuffer)
 	D3D12_SUBRESOURCE_DATA data = {};
-	data.pData = Y_Quantization_Table_Float;
+	data.pData = quantizationTableFloat;
 	data.RowPitch = 64 * sizeof(unsigned char);
 	data.SlicePitch = data.RowPitch * 1;
 
@@ -730,8 +730,10 @@ void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizat
 	ThrowIfFailed(mDirectList->Reset(mDirectAllocator, nullptr));
 	mDirectList->SetGraphicsRootSignature(mRootSignature);
 
-	UpdateSubresources(mDirectList, mCB_CbCr_Quantization_Table->GetResource(), uploadHeap, 0, 0, 1, &data);
+	UpdateSubresources(mDirectList, quantizationTable->GetResource(), uploadHeap, 0, 0, 1, &data);
 	mDirectList->ResourceBarrier(1, &barrier);
+
+	// Execute command list?
 }
 
 void DX12_JpegEncoderGPU::shutdown()
@@ -785,7 +787,7 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
 
 	mDoCreateBuffers = true;
 
-	mComputeSys = new DX12_ComputeWrap(mD3DDevice);
+	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue);
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;

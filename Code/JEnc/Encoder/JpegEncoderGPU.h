@@ -8,6 +8,7 @@
 #include "JpegEncoderBase.h"
 
 #include "../../Shared/ComputeShader.h"
+#include "../../Shared/DX12_ComputeShader.h"
 
 class JpegEncoderGPU : public JpegEncoderBase
 {
