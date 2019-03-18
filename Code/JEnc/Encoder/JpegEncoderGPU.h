@@ -146,6 +146,8 @@ protected:
 	//ID3D11Buffer = ID3D12ShaderReflectionConstantBuffer?
 	ID3D12Resource*				mCB_ImageData_Y; // CBV
 	ID3D12Resource*				mCB_ImageData_CbCr; // CBV
+	ID3D12DescriptorHeap*		mCB_ImageData_Y_Heap;
+	ID3D12DescriptorHeap*		mCB_ImageData_CbCr_Heap;
 
 	//Compute shaders for each ycbcr component
 	DX12_ComputeWrap*				mComputeSys;

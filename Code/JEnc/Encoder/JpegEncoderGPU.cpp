@@ -387,11 +387,11 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	id.NumBlocksX = mNumComputationBlocks_Y[0];
 	id.NumBlocksY = mNumComputationBlocks_Y[1];
 
-	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(sizeof(ImageData), &id, "mCB_ImageData_Y");
+	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(mCB_ImageData_Y_Heap, sizeof(ImageData), &id, "mCB_ImageData_Y");
 
 	id.NumBlocksX = mNumComputationBlocks_CbCr[0];
 	id.NumBlocksY = mNumComputationBlocks_CbCr[1];
-	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(sizeof(ImageData), &id, "mCB_ImageData_CbCr");
+	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(mCB_ImageData_CbCr_Heap, sizeof(ImageData), &id, "mCB_ImageData_CbCr");
 
 
 	D3D12_SAMPLER_DESC samplerDesc;
@@ -843,6 +843,10 @@ void DX12_JpegEncoderGPU::ReleaseBuffers()
 	SAFE_DELETE(mCB_DCT_Matrix_Transpose);
 	
 	SAFE_RELEASE(mCB_SamplerState_PointClamp);
+
+	// Might not be necessary
+	SAFE_RELEASE(mCB_ImageData_Y_Heap);
+	SAFE_RELEASE(mCB_ImageData_CbCr_Heap);
 }
 
 void DX12_JpegEncoderGPU::ReleaseQuantizationBuffers()
@@ -956,9 +960,9 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 
 	//Set the SRV and UAV descriptor heaps
 	ID3D12DescriptorHeap * srvHeap[] = { 
-		mCB_DCT_Matrix->GetResourceView(),
-		mCB_DCT_Matrix_Transpose->GetResourceView(),
-		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetResourceView() : NULL 
+		mCB_DCT_Matrix->GetHeap(),
+		mCB_DCT_Matrix_Transpose->GetHeap(),
+		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetHeap() : NULL
 	};
 	mDirectList->SetDescriptorHeaps(3, srvHeap);
 	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart()); // t0
@@ -1004,19 +1008,19 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 
 void DX12_JpegEncoderGPU::Dispatch()
 {
-	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetUnorderedAccessView() };
+	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
 	mDirectList->SetDescriptorHeaps(1, uavHeap);
 	mDirectList->SetComputeRootDescriptorTable(0, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
 
 	ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
-		mCB_Y_Quantization_Table->GetResourceView(), 
-		mCB_Huff_Y_AC->GetResourceView() 
+		mCB_Y_Quantization_Table->GetHeap(),
+		mCB_Huff_Y_AC->GetHeap()
 	};
 	mDirectList->SetDescriptorHeaps(2, srv_Huffman_Y);
 	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart()); // t3
 	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_Y[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
-	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y };
+	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y_Heap };
 	mDirectList->SetDescriptorHeaps(1, cb_ImageData_Y);
 	mDirectList->SetComputeRootDescriptorTable(0, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart()); // b0
 
@@ -1038,14 +1042,14 @@ void DX12_JpegEncoderGPU::Dispatch()
 	mShader_Y_Component->Unset();
 
 	ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
-		mCB_CbCr_Quantization_Table->GetResourceView(), 
-		mCB_Huff_CbCr_AC->GetResourceView() 
+		mCB_CbCr_Quantization_Table->GetHeap(),
+		mCB_Huff_CbCr_AC->GetHeap()
 	};
 	mDirectList->SetDescriptorHeaps(2, srv_Huffman_CbCr);
 	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart()); // t3
 	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_CbCr[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
-	ID3D12DescriptorHeap * constantBuffer[] = { mCB_ImageData_CbCr };
+	ID3D12DescriptorHeap * constantBuffer[] = { mCB_ImageData_CbCr_Heap };
 	mDirectList->SetDescriptorHeaps(1, constantBuffer);
 	mDirectList->SetComputeRootDescriptorTable(0, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart()); // bo
 
