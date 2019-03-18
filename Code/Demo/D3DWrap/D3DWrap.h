@@ -80,6 +80,8 @@ public:
 
 	ID3D12RootSignature * GetRootSignature() { return m_rootSignature; }
 
+	DX12Fence * GetFence(UINT index) { return &m_fences[index]; }
+
 	inline void WaitForGPUCompletion(ID3D12CommandQueue * pCmdQ, DX12Fence * fence)
 	{
 		const UINT64 fenceValue = fence->m_fenceValue ;
