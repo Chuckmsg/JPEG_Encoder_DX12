@@ -427,14 +427,14 @@ void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 	ReleaseQuantizationBuffers();
 
 	if (mCB_Y_Quantization_Table == NULL)
-		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
+		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
 	else
 	{
 		UpdateQuantizationTable(mCB_Y_Quantization_Table, Y_Quantization_Table_Float);
 	}
 
 	if (mCB_CbCr_Quantization_Table == NULL)
-		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
+		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
 	else
 	{
 		UpdateQuantizationTable(mCB_Y_Quantization_Table, CbCr_Quantization_Table_Float);
