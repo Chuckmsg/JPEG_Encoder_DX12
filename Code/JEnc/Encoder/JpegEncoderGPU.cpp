@@ -728,12 +728,14 @@ void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizat
 
 	ThrowIfFailed(mDirectAllocator->Reset());
 	ThrowIfFailed(mDirectList->Reset(mDirectAllocator, nullptr));
-	mDirectList->SetGraphicsRootSignature(mRootSignature);
+	//mDirectList->SetGraphicsRootSignature(mRootSignature); Do not know if this is correct
 
 	UpdateSubresources(mDirectList, quantizationTable->GetResource(), uploadHeap, 0, 0, 1, &data);
 	mDirectList->ResourceBarrier(1, &barrier);
 
 	// Execute command list?
+	ID3D12CommandList* listsToExecute[] = { mDirectList };
+	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
 }
 
 void DX12_JpegEncoderGPU::shutdown()
