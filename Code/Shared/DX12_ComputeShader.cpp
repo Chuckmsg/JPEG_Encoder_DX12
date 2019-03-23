@@ -249,7 +249,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(UINT uSize, VOID * pInit
 			return nullptr;
 
 		// Populate the command queue
-		m_commandList->SetGraphicsRootSignature(m_rootSignature);
+		//m_commandList->SetGraphicsRootSignature(m_rootSignature);
 		UpdateSubresources(m_commandList, pBuffer, intermediateResource, 0, 0, 1, &resourceData);
 		m_commandList->ResourceBarrier(1, &barrier);
 
@@ -490,7 +490,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(UINT uElementSize, UIN
 			return nullptr;
 
 		// Populate the command queue
-		m_commandList->SetGraphicsRootSignature(m_rootSignature);
+		//m_commandList->SetGraphicsRootSignature(m_rootSignature);
 		UpdateSubresources(m_commandList, pResource, intermediateResource, 0, 0, 1, &resourceData);
 		m_commandList->ResourceBarrier(1, &barrier);
 
@@ -749,7 +749,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DXGI_FORMAT dxFormat, U
 		return nullptr;
 
 	// Populate the command queue
-	m_commandList->SetGraphicsRootSignature(m_rootSignature);
+	//m_commandList->SetGraphicsRootSignature(m_rootSignature);
 	UpdateSubresources(m_commandList, pTexture, textureUploadHeap, 0, 0, 1, &textureData);
 	m_commandList->ResourceBarrier(1, &barrier);
 

@@ -197,6 +197,7 @@ private:
 public:
 	~DX12_ComputeShader();
 
+	// Not required (?)
 	void Set();
 	void Unset();
 };
@@ -208,7 +209,7 @@ class DX12_ComputeWrap
 	ID3D12DescriptorHeap*		m_descriptorHeap = NULL;
 	ID3D12CommandAllocator*		m_cmdAllocator = NULL;
 	ID3D12CommandQueue*			m_computeQueue = NULL;
-	ID3D12RootSignature*		m_rootSignature = NULL;
+	//ID3D12RootSignature*		m_rootSignature = NULL;
 
 	D3D12Wrap *					m_D3D12Wrap = NULL;
 
@@ -217,10 +218,14 @@ public:
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCommandList,
 		ID3D12CommandAllocator* pCmdAllocator,
-		ID3D12CommandQueue* pCmdQueue)
+		ID3D12CommandQueue* pCmdQueue,
+		D3D12Wrap* pWrap)
 	{
 		m_device = pDevice;
 		m_commandList = pCommandList;
+		m_cmdAllocator = pCmdAllocator;
+		m_computeQueue = pCmdQueue;
+		m_D3D12Wrap = pWrap;
 	}
 
 	DX12_ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* pFunctionName, D3D_SHADER_MACRO* pDefines);
