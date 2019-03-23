@@ -10,6 +10,8 @@
 #include "../../Shared/ComputeShader.h"
 #include "../../Shared/DX12_ComputeShader.h"
 
+#include "../../Demo/D3DWrap/D3DWrap.h"
+
 class JpegEncoderGPU : public JpegEncoderBase
 {
 protected:
@@ -200,7 +202,7 @@ private:
 	void shutdown();
 
 public:
-	DX12_JpegEncoderGPU(ID3D12Resource* resource);
+	DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3dWrap);
 	virtual ~DX12_JpegEncoderGPU();
 
 	virtual bool Init() = 0;

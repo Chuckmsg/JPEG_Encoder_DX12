@@ -85,8 +85,8 @@ void JpegEncoderGPU_422::DoEntropyEncode()
 	mCB_EntropyResult->Unmap();
 }
 
-DX12_JpegEncoderGPU_422::DX12_JpegEncoderGPU_422(ID3D12Resource* resource)
-	: DX12_JpegEncoderGPU(resource)
+DX12_JpegEncoderGPU_422::DX12_JpegEncoderGPU_422(ID3D12Resource* resource, D3D12Wrap* d3dWrap)
+	: DX12_JpegEncoderGPU(resource, d3dWrap)
 {
 	mSubsampleType = JENC_CHROMA_SUBSAMPLE_4_2_2;
 }
@@ -103,7 +103,7 @@ bool DX12_JpegEncoderGPU_422::Init()
 	{ NULL, NULL }
 	};
 
-	mShader_Y_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "422_Y", "ComputeJPEG", shaderDefines_Y);
+	mShader_Y_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "ComputeJPEG", shaderDefines_Y);
 	if (!mShader_Y_Component)
 	{
 		return false;
@@ -115,7 +115,7 @@ bool DX12_JpegEncoderGPU_422::Init()
 	{ NULL, NULL }
 	};
 
-	mShader_Cb_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "422_Cb", "ComputeJPEG", shaderDefines_Cb);
+	mShader_Cb_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "ComputeJPEG", shaderDefines_Cb);
 	if (!mShader_Cb_Component)
 	{
 		return false;
@@ -127,7 +127,7 @@ bool DX12_JpegEncoderGPU_422::Init()
 	{ NULL, NULL }
 	};
 
-	mShader_Cr_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "422_Cr", "ComputeJPEG", shaderDefines_Cr);
+	mShader_Cr_Component = mComputeSys->CreateComputeShader(mComputeShaderFile, "ComputeJPEG", shaderDefines_Cr);
 	if (!mShader_Cr_Component)
 	{
 		return false;

@@ -8,6 +8,7 @@
 #include "JpegEncoderGPU.h"
 
 #include "../../Shared/ComputeShader.h"
+#include "../../Demo/D3DWrap/D3DWrap.h"
 
 class JpegEncoderGPU_420 : public JpegEncoderGPU
 {
@@ -28,7 +29,7 @@ private:
 class DX12_JpegEncoderGPU_420 : public DX12_JpegEncoderGPU
 {
 public:
-	DX12_JpegEncoderGPU_420(ID3D12Resource* resource);
+	DX12_JpegEncoderGPU_420(ID3D12Resource* resource, D3D12Wrap* d3dWrap);
 	virtual ~DX12_JpegEncoderGPU_420();
 
 	virtual bool Init();

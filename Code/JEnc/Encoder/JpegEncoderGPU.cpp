@@ -618,12 +618,12 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	HRESULT hr = S_OK;
 	HWND wHnd = GetActiveWindow();
 	assert(wHnd);
-
+	
 	// Create compute pipeline state for the Y component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Y = {};
 	descComputePSO_Y.pRootSignature = mRootSignature;
-	descComputePSO_Y.CS.pShaderBytecode = mShader_Y_Component->GetShaderCode().data();
-	descComputePSO_Y.CS.BytecodeLength = mShader_Y_Component->GetShaderCode().size();
+	descComputePSO_Y.CS.pShaderBytecode = mShader_Y_Component->GetShaderCode()->GetBufferPointer();
+	descComputePSO_Y.CS.BytecodeLength = mShader_Y_Component->GetShaderCode()->GetBufferSize();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Y, IID_PPV_ARGS(&mPSO_Y_Component));
 	if (FAILED(hr))
@@ -636,8 +636,8 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	// Create compute pipeline state for the Cb component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cb = {};
 	descComputePSO_Cb.pRootSignature = mRootSignature;
-	descComputePSO_Cb.CS.pShaderBytecode = mShader_Cb_Component->GetShaderCode().data();
-	descComputePSO_Cb.CS.BytecodeLength = mShader_Cb_Component->GetShaderCode().size();
+	descComputePSO_Cb.CS.pShaderBytecode = mShader_Cb_Component->GetShaderCode()->GetBufferPointer();
+	descComputePSO_Cb.CS.BytecodeLength = mShader_Cb_Component->GetShaderCode()->GetBufferSize();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cb, IID_PPV_ARGS(&mPSO_Cb_Component));
 	if (FAILED(hr))
@@ -650,8 +650,8 @@ HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
 	// Create compute pipeline state for the Cr component
 	D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO_Cr = {};
 	descComputePSO_Cr.pRootSignature = mRootSignature;
-	descComputePSO_Cr.CS.pShaderBytecode = mShader_Cr_Component->GetShaderCode().data();
-	descComputePSO_Cr.CS.BytecodeLength = mShader_Cr_Component->GetShaderCode().size();
+	descComputePSO_Cr.CS.pShaderBytecode = mShader_Cr_Component->GetShaderCode()->GetBufferPointer();
+	descComputePSO_Cr.CS.BytecodeLength = mShader_Cr_Component->GetShaderCode()->GetBufferSize();
 
 	hr = mD3DDevice->CreateComputePipelineState(&descComputePSO_Cr, IID_PPV_ARGS(&mPSO_Cr_Component));
 	if (FAILED(hr))
@@ -759,7 +759,7 @@ void DX12_JpegEncoderGPU::shutdown()
 	SafeRelease(&mCopyList);
 }
 
-DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
+DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3dWrap) // nr:0
 	: imageResource(resource)
 {
 	imageResource->GetDevice(__uuidof(ID3D12Device), (void**)(&mD3DDevice));
@@ -789,7 +789,7 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource) // nr:0
 
 	mDoCreateBuffers = true;
 
-	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue);
+	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue, d3dWrap);
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;
@@ -964,7 +964,7 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	ID3D12DescriptorHeap * srvHeap[] = { 
 		mCB_DCT_Matrix->GetHeap(),
 		mCB_DCT_Matrix_Transpose->GetHeap(),
-		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetHeap() : NULL
+		pSRV ? pSRV : (mCT_RGBA ? mCT_RGBA->GetHeap() : NULL)
 	};
 	mDirectList->SetDescriptorHeaps(3, srvHeap);
 	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart()); // t0
@@ -1025,13 +1025,13 @@ void DX12_JpegEncoderGPU::Dispatch()
 	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y_Heap };
 	mDirectList->SetDescriptorHeaps(1, cb_ImageData_Y);
 	mDirectList->SetComputeRootDescriptorTable(0, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart()); // b0
-
+	
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
 	D3D12_RESOURCE_BARRIER barrier{};
 	MakeResourceBarrier(
 		barrier,
 		D3D12_RESOURCE_BARRIER_TYPE_UAV,
-		uavHeap[0],
+		mCB_EntropyResult->GetResource(),
 		D3D12_RESOURCE_STATES(0), //UAV does not need transition states
 		D3D12_RESOURCE_STATES(0)
 	);
@@ -1071,7 +1071,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 	MakeResourceBarrier(
 		cpyBarrierSrc,
 		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-		uavHeap[0],
+		mCB_EntropyResult->GetResource(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COPY_SOURCE
 	);

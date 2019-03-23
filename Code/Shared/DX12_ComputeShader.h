@@ -87,6 +87,11 @@ public:
 		SAFE_RELEASE(m_descHeap);
 	}
 
+	ID3D12DescriptorHeap* GetHeap()
+	{
+		return m_descHeap;
+	}
+
 private:
 	DX12_ComputeBuffer(const DX12_ComputeBuffer & cb) {}
 
@@ -163,6 +168,11 @@ public:
 		SAFE_RELEASE(m_descHeap);
 	}
 
+	ID3D12DescriptorHeap* GetHeap()
+	{
+		return m_descHeap;
+	}
+
 private:
 	DX12_ComputeTexture(const DX12_ComputeBuffer & cb) {}
 
@@ -197,6 +207,8 @@ private:
 public:
 	~DX12_ComputeShader();
 
+	ID3DBlob* GetShaderCode() { return m_computeShader; }
+
 	// Not required (?)
 	void Set();
 	void Unset();
@@ -217,14 +229,12 @@ public:
 	DX12_ComputeWrap(
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCommandList,
-		ID3D12DescriptorHeap* pHeap,
 		ID3D12CommandAllocator* pCmdAllocator,
 		ID3D12CommandQueue* pCmdQueue,
 		D3D12Wrap* pWrap)
 	{
 		m_device = pDevice;
 		m_commandList = pCommandList;
-		m_descriptorHeap = pHeap;
 		m_cmdAllocator = pCmdAllocator;
 		m_computeQueue = pCmdQueue;
 		m_D3D12Wrap = pWrap;
@@ -232,7 +242,7 @@ public:
 
 	DX12_ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* pFunctionName, D3D_SHADER_MACRO* pDefines);
 
-	ID3D12Resource* CreateConstantBuffer(UINT uSize, VOID* pInitData, char* debugName = NULL);
+	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID* pInitData, char* debugName = NULL);
 
 	DX12_ComputeBuffer* CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
 		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);

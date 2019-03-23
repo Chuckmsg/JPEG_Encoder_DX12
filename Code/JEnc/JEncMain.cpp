@@ -40,18 +40,18 @@ DECLDIR JEnc* CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSA
 }
 
 DECLDIR JEnc* DX12_CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
-	struct ID3D12Resource* resource)
+	struct ID3D12Resource* resource, struct D3D12Wrap* d2dWrap)
 {
 	JpegEncoderBase* enc = NULL;
 
 	if (encoderType == GPU_ENCODER)
 	{
 		if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_4_4)
-			enc = myNew DX12_JpegEncoderGPU_444(resource);
+			enc = myNew DX12_JpegEncoderGPU_444(resource, d2dWrap);
 		else if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_2_2)
-			enc = myNew DX12_JpegEncoderGPU_422(resource);
+			enc = myNew DX12_JpegEncoderGPU_422(resource, d2dWrap);
 		else if (subsampleType == JENC_CHROMA_SUBSAMPLE_4_2_0)
-			enc = myNew DX12_JpegEncoderGPU_420(resource);
+			enc = myNew DX12_JpegEncoderGPU_420(resource, d2dWrap);
 	}
 
 	if (enc)

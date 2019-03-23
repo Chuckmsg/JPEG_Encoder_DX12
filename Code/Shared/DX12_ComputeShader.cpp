@@ -150,7 +150,7 @@ DX12_ComputeShader * DX12_ComputeWrap::CreateComputeShader(TCHAR * shaderFile, c
 	return cs;
 }
 
-ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(UINT uSize, VOID * pInitData, char * debugName)
+ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID * pInitData, char * debugName)
 {
 	ID3D12Resource * pBuffer = NULL;
 
@@ -257,7 +257,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(UINT uSize, VOID * pInit
 		constBuffDesc.BufferLocation = pBuffer->GetGPUVirtualAddress();
 		constBuffDesc.SizeInBytes = uploadBufferSize;
 
-		m_device->CreateConstantBufferView(&constBuffDesc, m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		m_device->CreateConstantBufferView(&constBuffDesc, descriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 		// Close the command list and execute it
 		m_commandList->Close();
@@ -275,14 +275,14 @@ ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(UINT uSize, VOID * pInit
 	return pBuffer;
 }
 
-DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(COMPUTE_BUFFER_TYPE uType, UINT uElementSize, UINT uCount,
+DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize, UINT uCount,
 	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, char * debugName)
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
 
-	if (STRUCTURED_BUFFER == uType)
+	if (DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER == uType)
 		buffer->m_resource = CreateStructuredBuffer(uElementSize, uCount, bSRV, bUAV, pInitData);
-	else if (RAW_BUFFER == uType)
+	else if (DX12_COMPUTE_BUFFER_TYPE::RAW_BUFFER == uType)
 		buffer->m_resource = CreateRawBuffer(uElementSize * uCount, pInitData);
 
 	if (NULL != buffer->m_resource)
@@ -308,6 +308,8 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(COMPUTE_BUFFER_TYPE uType, U
 			buffer->m_UAV->SetName(LPCWSTR(debugName));
 	}
 
+	buffer->m_descHeap = m_descriptorHeap;
+
 	return buffer;
 }
 
@@ -320,7 +322,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT
 	if (NULL != texture->m_resource)
 	{
 		CreateTextureSRV(texture->m_SRV);
-		CreateTextureUAV(texture->m_UAV);
+		//CreateTextureUAV(texture->m_UAV); Do not need for JpegEncoderGPU
 
 		if (bCreateStaging)
 			CreateStagingTexture(texture->m_resource);
@@ -337,6 +339,8 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT
 		if (texture->m_UAV)
 			texture->m_UAV->SetName(LPCWSTR(debugName));
 	}
+
+	texture->m_descHeap = m_descriptorHeap;
 
 	return texture;
 }
