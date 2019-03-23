@@ -26,6 +26,6 @@ extern "C"
 
 	// Create a jpeg encoder instace with directx 12
 	DECLDIR JEnc* DX12_CreateJpegEncoderInstance(JENC_TYPE encoderType, JENC_CHROMA_SUBSAMPLE subsampleType,
-		struct ID3D12Resource* resource, struct D3D12Wrap* d2dWrap);
+		struct D3D12Wrap* d3dWrap);
 }
 #endif

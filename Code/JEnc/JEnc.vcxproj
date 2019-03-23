@@ -21,7 +21,6 @@
   <ItemGroup>
     <ClInclude Include="..\Shared\ComputeShader.h" />
     <ClInclude Include="..\Shared\DX12_ComputeShader.h" />
-    <ClInclude Include="..\Shared\DX12_Helper.h" />
     <ClInclude Include="..\Shared\JpegCommon.h" />
     <ClInclude Include="Encoder\JpegEncoderBase.h" />
     <ClInclude Include="Encoder\JpegEncoderGPU.h" />

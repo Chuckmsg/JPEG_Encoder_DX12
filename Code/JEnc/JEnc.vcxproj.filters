@@ -59,9 +59,6 @@
     <ClInclude Include="..\Shared\DX12_ComputeShader.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="..\Shared\DX12_Helper.h">
-      <Filter>Include</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="JEncMain.cpp">

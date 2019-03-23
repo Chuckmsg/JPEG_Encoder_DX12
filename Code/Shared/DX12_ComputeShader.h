@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 #include "..\Demo\D3DWrap\D3DWrap.h"
-#include "DX12_Helper.h"
+#include "DX_12Helper.h"
 
 #include <tchar.h>
 
@@ -23,8 +23,8 @@
 
 enum DX12_COMPUTE_BUFFER_TYPE
 {
-	STRUCTURED_BUFFER,
-	RAW_BUFFER
+	DX12_STRUCTURED_BUFFER,
+	DX12_RAW_BUFFER
 };
 
 class DX12_ComputeBuffer
@@ -57,7 +57,7 @@ public:
 		T* p = NULL;
 
 		// Nullptr range because it might be read (?) Confirm this
-		_Staging->Map(0, nullptr, reinterpret_cast<void**>(&p));
+		m_staging->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
 		return p;
 	}
@@ -210,8 +210,8 @@ public:
 	ID3DBlob* GetShaderCode() { return m_computeShader; }
 
 	// Not required (?)
-	void Set();
-	void Unset();
+	//void Set();
+	//void Unset();
 };
 
 class DX12_ComputeWrap

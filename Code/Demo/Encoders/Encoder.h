@@ -74,3 +74,53 @@ public:
 
 	virtual char* Name() = 0;
 };
+
+/*
+	DX12 class
+*/
+
+class DX12_Encoder
+{
+protected:
+	BYTE * destinationBuffer;
+	UINT destinationBufferSize;
+
+	int imageWidth;
+	int imageHeight;
+
+protected:
+	SurfacePreperationDX12 * surfacePreparation;
+public:
+	DX12_Encoder(SurfacePreperationDX12* surfacePrep)
+	{
+		destinationBuffer = NULL;
+		destinationBufferSize = 0;
+		imageWidth = 0;
+		imageHeight = 0;
+
+		surfacePreparation = surfacePrep;
+	}
+	virtual ~DX12_Encoder() { SAFE_DELETE_ARRAY(destinationBuffer); };
+
+	void VerifyDestinationBuffer(int w, int h)
+	{
+		if (imageWidth < w || imageHeight < h)
+		{
+			imageWidth = w;
+			imageHeight = h;
+			destinationBufferSize = imageWidth * imageHeight * 4;
+
+			SAFE_DELETE_ARRAY(destinationBuffer);
+			destinationBuffer = myNew BYTE[destinationBufferSize]; //will be big enough :-)
+		}
+	}
+	
+	virtual EncodeResult DX12_Encode(ID3D12Resource* textureResource,
+		CHROMA_SUBSAMPLE subsampleType,
+		float outputScale,
+		int jpegQuality) = 0;
+
+	virtual HRESULT Init(D3D12Wrap* d3d) = 0;
+
+	virtual char* Name() = 0;
+};

@@ -84,8 +84,8 @@ void JpegEncoderGPU_444::DoEntropyEncode()
 	mCB_EntropyResult->Unmap();
 }
 
-DX12_JpegEncoderGPU_444::DX12_JpegEncoderGPU_444(ID3D12Resource* resource, D3D12Wrap* d3dWrap)
-	: DX12_JpegEncoderGPU(resource, d3dWrap)
+DX12_JpegEncoderGPU_444::DX12_JpegEncoderGPU_444(D3D12Wrap* d3dWrap)
+	: DX12_JpegEncoderGPU(d3dWrap)
 {
 	mSubsampleType = JENC_CHROMA_SUBSAMPLE_4_4_4;
 }
@@ -130,6 +130,13 @@ bool DX12_JpegEncoderGPU_444::Init()
 	if (!mShader_Cr_Component)
 	{
 		return false;
+	}
+
+	// Create the PSOs
+	if (FAILED(createPiplineStateObjects()))
+	{
+		//PostMessageBoxOnError(0, L"Failed to create PSOs: ", L"Fatal error", MB_ICONERROR, wHnd);
+		exit(-1);
 	}
 
 	return true;

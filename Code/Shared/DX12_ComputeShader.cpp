@@ -280,9 +280,9 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uTy
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
 
-	if (DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER == uType)
+	if (DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER == uType)
 		buffer->m_resource = CreateStructuredBuffer(uElementSize, uCount, bSRV, bUAV, pInitData);
-	else if (DX12_COMPUTE_BUFFER_TYPE::RAW_BUFFER == uType)
+	else if (DX12_COMPUTE_BUFFER_TYPE::DX12_RAW_BUFFER == uType)
 		buffer->m_resource = CreateRawBuffer(uElementSize * uCount, pInitData);
 
 	if (NULL != buffer->m_resource)

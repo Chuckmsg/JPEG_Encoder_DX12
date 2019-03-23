@@ -29,7 +29,7 @@ private:
 class DX12_JpegEncoderGPU_420 : public DX12_JpegEncoderGPU
 {
 public:
-	DX12_JpegEncoderGPU_420(ID3D12Resource* resource, D3D12Wrap* d3dWrap);
+	DX12_JpegEncoderGPU_420(D3D12Wrap* d3dWrap);
 	virtual ~DX12_JpegEncoderGPU_420();
 
 	virtual bool Init();

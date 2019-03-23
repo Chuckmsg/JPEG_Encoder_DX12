@@ -514,10 +514,10 @@ SurfacePreperationDX12::~SurfacePreperationDX12()
 {
 }
 
-HRESULT SurfacePreperationDX12::Init(ID3D12Device * device, ID3D12RootSignature * pRoot)
+HRESULT SurfacePreperationDX12::Init(D3D12Wrap * pD3D12Wrap)
 {
-	m_device = device;
-	m_root = pRoot;
+	m_device = pD3D12Wrap->GetDevice();
+	m_root = pD3D12Wrap->GetRootSignature();
 
 	HRESULT hr = _compileVertexShader();
 	if (FAILED(hr))
@@ -537,6 +537,87 @@ void SurfacePreperationDX12::Cleanup()
 	SAFE_RELEASE(m_vertexShaderCode);
 	SAFE_RELEASE(m_pixelShaderCode);
 	SAFE_RELEASE(m_pso);
+}
+
+DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Resource * texture, float outputScale)
+{
+	DX12_PreparedSurface result;
+
+	SAFE_RELEASE(m_heap);
+	InitSRV(texture, texture->GetDesc().Format, &m_heap);
+
+	result.Width = texture->GetDesc().Width;
+	result.Height = texture->GetDesc().Height;
+	result.Heap = m_heap;
+
+	return result;
+	/*if (texture)
+	{
+		//D3D11_TEXTURE2D_DESC textureDesc;
+		D3D12_RESOURCE_DESC textureDesc;
+		textureDesc = texture->GetDesc();
+		
+		if (textureDesc.SampleDesc.Count == 1)
+		{
+			SAFE_RELEASE(mCopyTextureGPU);
+			HRESULT hr = InitSRV(texture, textureDesc.Format, &mCopySRV);
+		}
+		else
+		{
+			if (mCopyDescription.Width != textureDesc.Width || mCopyDescription.Height != textureDesc.Height)
+			{
+				if (FAILED(InitCopyTexture(textureDesc.Width, textureDesc.Height)))
+				{
+					result.Heap = NULL;
+					return result;
+				}
+
+				InitSRV(mCopyTextureGPU, textureDesc.Format, &mCopySRV);
+			}
+
+			//check if texture is multisampled
+			if (textureDesc.SampleDesc.Count > 1)
+			{
+				mDeviceContext->ResolveSubresource(mCopyTextureGPU, 0, texture, 0, textureDesc.Format);
+			}
+			else
+			{
+				mDeviceContext->CopyResource(mCopyTextureGPU, texture);
+			}
+		}
+
+		if (outputScale != 1.0f)
+		{
+			int rescaledWidth = int(textureDesc.Width * outputScale);
+			int rescaledHeight = int(textureDesc.Height * outputScale);
+
+			if (mRescaleWidth != rescaledWidth || mRescaleHeight != rescaledHeight)
+			{
+				mRescaleWidth = rescaledWidth;
+				mRescaleHeight = rescaledHeight;
+
+				if (FAILED(InitRescaleTexture()))
+				{
+					result.Heap = NULL;
+					return result;
+				}
+			}
+
+			RenderCopyToRescaleTarget();
+
+			result.Heap = mRescaleSRV;
+			result.Width = rescaledWidth;
+			result.Height = rescaledHeight;
+		}
+		else
+		{
+			result.Heap = mCopySRV;
+			result.Width = textureDesc.Width;
+			result.Height = textureDesc.Height;
+		}
+	}
+
+	return result;*/
 }
 
 HRESULT SurfacePreperationDX12::_compileVertexShader()
@@ -615,5 +696,99 @@ HRESULT SurfacePreperationDX12::_compilePixelShader()
 
 HRESULT SurfacePreperationDX12::_createPSO()
 {
-	return E_NOTIMPL;
+	HRESULT hr = S_OK;
+
+	D3D12_RASTERIZER_DESC rsDesc = {};
+	rsDesc.AntialiasedLineEnable = TRUE;
+	rsDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	rsDesc.CullMode = D3D12_CULL_MODE_NONE;
+	rsDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	rsDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	rsDesc.DepthClipEnable = FALSE;
+	rsDesc.ForcedSampleCount = 0;
+	rsDesc.FrontCounterClockwise = FALSE;
+	rsDesc.MultisampleEnable = FALSE;
+	rsDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	rsDesc.FillMode = D3D12_FILL_MODE_SOLID;
+
+	// Define the vertex input layout. BASED ON IA.h macros and Number of Vertex buffers for correct input slot
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	//Define the blend state as default
+	D3D12_BLEND_DESC blendDesc = {};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+	{
+		blendDesc.RenderTarget[i].BlendEnable = FALSE;
+		blendDesc.RenderTarget[i].LogicOpEnable = FALSE;
+		blendDesc.RenderTarget[i].SrcBlend = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[i].DestBlend = D3D12_BLEND_ZERO;
+		blendDesc.RenderTarget[i].BlendOp = D3D12_BLEND_OP_ADD;
+		blendDesc.RenderTarget[i].SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[i].DestBlendAlpha = D3D12_BLEND_ZERO;
+		blendDesc.RenderTarget[i].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blendDesc.RenderTarget[i].LogicOp = D3D12_LOGIC_OP_NOOP;
+		blendDesc.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	}
+
+	D3D12_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = TRUE;
+	dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	dsDesc.StencilEnable = FALSE;
+	dsDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	dsDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	const D3D12_DEPTH_STENCILOP_DESC defaultStencilOp = {
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_STENCIL_OP_KEEP,
+		D3D12_COMPARISON_FUNC_ALWAYS };
+	dsDesc.FrontFace = defaultStencilOp;
+	dsDesc.BackFace = defaultStencilOp;
+
+	// Create compute pipeline state for the Y component
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC descPSO = {};
+	descPSO.InputLayout = { inputElementDescs, _ARRAYSIZE(inputElementDescs) };
+	descPSO.pRootSignature = m_root;
+	descPSO.VS.pShaderBytecode = m_vertexShaderCode->GetBufferPointer();
+	descPSO.VS.BytecodeLength = m_vertexShaderCode->GetBufferSize();
+	descPSO.PS.pShaderBytecode = m_pixelShaderCode->GetBufferPointer();
+	descPSO.PS.BytecodeLength = m_pixelShaderCode->GetBufferSize();
+	descPSO.RasterizerState = rsDesc;
+	descPSO.BlendState = blendDesc;
+	descPSO.DepthStencilState = dsDesc;
+	descPSO.SampleMask = UINT_MAX;
+	descPSO.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	descPSO.NumRenderTargets = 2;
+	descPSO.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	descPSO.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	descPSO.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	descPSO.SampleDesc.Count = 1;
+	
+	hr = m_device->CreateGraphicsPipelineState(&descPSO, IID_PPV_ARGS(&m_pso));
+	if (FAILED(hr))
+	{
+		MessageBoxA(0, "Failed to create PSO in SurfacePreperationDX12!", "Error!", 0);
+		exit(-1);
+	}
+	m_pso->SetName(L"Compute PSO Y Component");
+	
+	return hr;
+}
+
+HRESULT SurfacePreperationDX12::InitSRV(ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap ** outDescriptorHeap)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc;
+	desc.Format = format;
+	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MostDetailedMip = 0;
+	desc.Texture2D.MipLevels = 1;
+
+	m_device->CreateShaderResourceView(shaderResource, &desc, (*outDescriptorHeap)->GetCPUDescriptorHandleForHeapStart());
+	return S_OK;
 }

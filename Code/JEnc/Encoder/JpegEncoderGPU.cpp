@@ -364,7 +364,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	mEntropyBlockSize = CalculateBufferSize(mQualitySetting);
 
 	mCB_EntropyResult = mComputeSys->CreateBuffer(
-		DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER,
+		DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER,
 		sizeof(int),
 		(mNumComputationBlocks_Y[0] * mNumComputationBlocks_Y[1] + mNumComputationBlocks_CbCr[0] * mNumComputationBlocks_CbCr[1] * 2) * mEntropyBlockSize,
 		false, // SRV
@@ -373,11 +373,11 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 		true,
 		"mCB_EntropyResult");
 
-	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
-	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
+	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
+	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
 
-	mCB_DCT_Matrix = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
-	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
+	mCB_DCT_Matrix = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
+	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
 
 	ImageData id;
 	id.ImageWidth = (float)mImageWidth;
@@ -427,14 +427,14 @@ void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 	ReleaseQuantizationBuffers();
 
 	if (mCB_Y_Quantization_Table == NULL)
-		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
+		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
 	else
 	{
 		UpdateQuantizationTable(mCB_Y_Quantization_Table, Y_Quantization_Table_Float);
 	}
 
 	if (mCB_CbCr_Quantization_Table == NULL)
-		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
+		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
 	else
 	{
 		UpdateQuantizationTable(mCB_Y_Quantization_Table, CbCr_Quantization_Table_Float);
@@ -610,7 +610,7 @@ HRESULT DX12_JpegEncoderGPU::createAllocatorQueueList()
 		IID_PPV_ARGS(&mCopyList)
 	);
 
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT DX12_JpegEncoderGPU::createPiplineStateObjects()
@@ -742,9 +742,6 @@ void DX12_JpegEncoderGPU::shutdown()
 {
 	SafeRelease(&mRootSignature);
 
-	// Image resource
-	SafeRelease(&imageResource);
-
 	// Pipeline State object
 	SafeRelease(&mPSO_Y_Component);
 	SafeRelease(&mPSO_Cb_Component);
@@ -759,10 +756,9 @@ void DX12_JpegEncoderGPU::shutdown()
 	SafeRelease(&mCopyList);
 }
 
-DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3dWrap) // nr:0
-	: imageResource(resource)
+DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 {
-	imageResource->GetDevice(__uuidof(ID3D12Device), (void**)(&mD3DDevice));
+	mD3DDevice = d3dWrap->GetDevice();
 
 	_tcscpy_s(mComputeShaderFile, _T("../Shaders/Jpeg_CS.hlsl"));
 
@@ -793,7 +789,7 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;
-
+	
 	HWND wHnd = GetActiveWindow();
 	assert(wHnd);
 
@@ -802,14 +798,6 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3
 	if (FAILED(hr))
 	{
 		PostMessageBoxOnError(hr, L"Failed to create Root Signature: ", L"Fatal error", MB_ICONERROR, wHnd);
-		exit(-1);
-	}
-
-	// Create the PSOs
-	hr = createPiplineStateObjects();
-	if (FAILED(hr))
-	{
-		PostMessageBoxOnError(hr, L"Failed to create PSOs: ", L"Fatal error", MB_ICONERROR, wHnd);
 		exit(-1);
 	}
 
@@ -1039,9 +1027,9 @@ void DX12_JpegEncoderGPU::Dispatch()
 	
 	// Dispatch Y component
 	mDirectList->SetPipelineState(mPSO_Y_Component);
-	mShader_Y_Component->Set();
+	//mShader_Y_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
-	mShader_Y_Component->Unset();
+	//mShader_Y_Component->Unset();
 
 	ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
 		mCB_CbCr_Quantization_Table->GetHeap(),
@@ -1057,15 +1045,15 @@ void DX12_JpegEncoderGPU::Dispatch()
 
 	// Dispatch Cb component
 	mDirectList->SetPipelineState(mPSO_Cb_Component);
-	mShader_Cb_Component->Set();
+	//mShader_Cb_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
-	mShader_Cb_Component->Unset();
+	//mShader_Cb_Component->Unset();
 
 	// Dispatch Cr component
 	mDirectList->SetPipelineState(mPSO_Cr_Component);
-	mShader_Cr_Component->Set();
+	//mShader_Cr_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
-	mShader_Cr_Component->Unset();
+	//mShader_Cr_Component->Unset();
 
 	D3D12_RESOURCE_BARRIER cpyBarrierSrc{};
 	MakeResourceBarrier(

@@ -126,7 +126,7 @@ protected:
 	};
 
 	// Image resource
-	ID3D12Resource* imageResource;
+	//ID3D12Resource* imageResource;
 
 	//D3D
 	ID3D12Device*				mD3DDevice;
@@ -197,12 +197,11 @@ private:
 	// New functions
 	HRESULT createRootSignature();
 	HRESULT createAllocatorQueueList();
-	HRESULT createPiplineStateObjects();
 	void UpdateQuantizationTable(DX12_ComputeBuffer* quantizationTable, float* quantizationTableFloat);
 	void shutdown();
 
 public:
-	DX12_JpegEncoderGPU(ID3D12Resource* resource, D3D12Wrap* d3dWrap);
+	DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap);
 	virtual ~DX12_JpegEncoderGPU();
 
 	virtual bool Init() = 0;
@@ -225,4 +224,7 @@ protected:
 	virtual void DoEntropyEncode() = 0;
 
 	void FinalizeData();
+
+	// New functions
+	HRESULT createPiplineStateObjects();
 };

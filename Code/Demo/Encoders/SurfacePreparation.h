@@ -6,10 +6,18 @@
 #pragma once
 
 #include "../stdafx.h"
+#include "../D3DWrap/D3DWrap.h"
 
 struct PreparedSurface
 {
 	ID3D11ShaderResourceView*	SRV;
+	int							Width;
+	int							Height;
+};
+
+struct DX12_PreparedSurface
+{
+	ID3D12DescriptorHeap*		Heap;
 	int							Width;
 	int							Height;
 };
@@ -80,11 +88,14 @@ public:
 	SurfacePreperationDX12();
 	~SurfacePreperationDX12();
 
-	HRESULT Init(ID3D12Device * device, ID3D12RootSignature * pRoot);
+	HRESULT Init(D3D12Wrap * pD3D12Wrap);
 
 	ID3D12PipelineState * GetPSO() { return m_pso; }
 
 	void Cleanup();
+
+	DX12_PreparedSurface GetValidSurface(ID3D12Resource* texture, float outputScale);
+
 private:
 	ID3D12Device * m_device			= NULL;
 	ID3D12RootSignature * m_root	= NULL;
@@ -93,8 +104,12 @@ private:
 	ID3D10Blob * m_vertexShaderCode = NULL;
 	ID3D10Blob * m_pixelShaderCode = NULL;
 
+	ID3D12DescriptorHeap* m_heap;
+
 private:
 	HRESULT _compileVertexShader();
 	HRESULT _compilePixelShader();
 	HRESULT _createPSO();
+
+	HRESULT InitSRV(ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap** outDescriptorHeap);
 };

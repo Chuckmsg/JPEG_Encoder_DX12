@@ -12,6 +12,8 @@
 #include "JEncWrap\MJPEG.h"
 #include "Encoders\EncoderJEnc.h"
 
+DX12_EncoderJEnc* jencEncoder = nullptr;
+SurfacePreperationDX12 gSurfacePrepDX12;
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -67,6 +69,9 @@ HRESULT Init(HWND hwnd, int width, int height)
 	{
 		if (SUCCEEDED(InitDX12(hwnd, width, height)))
 		{
+			//if (FAILED(gSurfacePrepDX12.Init(&gD3D12)))
+			//	return E_FAIL;
+
 			DX12 = true;
 
 			gComputeWrap = new ComputeWrap(&gD3D12);
@@ -84,6 +89,13 @@ HRESULT Init(HWND hwnd, int width, int height)
 			gTexture = gComputeWrap->CreateTextureFromBitmap(_T("../Images/ssc_800.bmp"), "TEXTURE", DX12);
 
 			//Create the jpeg encoder here
+			jencEncoder = myNew DX12_EncoderJEnc(&gSurfacePrepDX12);
+			jencEncoder->Init(&gD3D12);
+			
+			//jencPtr = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_4_4, &gD3D12);
+
+			//D3D12_RESOURCE_DESC& desc = gD3D12.GetBackBufferResource(0)->GetDesc();
+			//testTexture = CreateTextureResource(desc.Format, desc.Width, desc.Height, 0, gD3D12.GetBackBufferResource(0)->);
 
 			return S_OK;
 		}
@@ -103,7 +115,6 @@ HRESULT Init(HWND hwnd, int width, int height)
 
 		gEncJEnc = myNew EncoderJEnc(&gSurfacePrep);
 		gEncJEnc->Init(&gD3D);
-
 
 		//create sample with default values
 		D3D11_SAMPLER_DESC samplerDesc;
@@ -131,7 +142,8 @@ HRESULT Cleanup()
 
 	SAFE_RELEASE(gSamplerState);
 	SAFE_RELEASE(gConstantBuffer);
-	
+
+	SAFE_DELETE(jencEncoder);
 	SAFE_DELETE(gEncJEnc);
 	SAFE_DELETE(gTexture);
 	SAFE_DELETE(gBackbufferShader);
@@ -141,6 +153,7 @@ HRESULT Cleanup()
 	{
 		SAFE_RELEASE(gBackBufferPipelineState);
 		gD3D12.Cleanup();
+		gSurfacePrepDX12.Cleanup();
 	}
 	else
 	{
@@ -505,6 +518,59 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 	//present the back buffer
 	DXGI_PRESENT_PARAMETERS pp = {};
 	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
+	
+	// Encode
+	EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+
+	static int movieNum = 1;
+	if (GetAsyncKeyState(VK_F2))
+	{
+		if (!gMJPEG.IsRecording())
+		{
+			char filename[100];
+			sprintf_s(filename, sizeof(filename), "%s%d.avi", movieNum < 10 ? "00" : movieNum < 100 ? "0" : "", movieNum);
+
+			movieNum++;
+			gLockedFrameRate = 24;
+
+			gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
+		}
+	}
+
+	if (gMJPEG.IsRecording())
+	{
+		gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
+	}
+
+	if (GetAsyncKeyState(VK_F3))
+	{
+		if (gMJPEG.IsRecording())
+		{
+			gMJPEG.StopRecording();
+
+			gLockedFrameRate = 0;
+		}
+	}
+
+	//////////////////////////////////////////////////////
+	static int imgNum = 1;
+	static bool bthPressed = false;
+	if (!bthPressed && GetAsyncKeyState(VK_F1))
+	{
+		char filename[100];
+		sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
+		FILE* f = NULL;
+		fopen_s(&f, filename, "wb");
+		fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
+		fclose(f);
+
+		imgNum++;
+		bthPressed = true;
+	}
+	else if (!GetAsyncKeyState(VK_F1))
+	{
+		bthPressed = false;
+	}
 
 	TCHAR title[200];
 	_stprintf_s(title, sizeof(title) / 2, _T("JPEG DirectCompute Demo | FPS: %.0f | Quality: %d | Output scale: %.2f | Subsampling: %s"),
