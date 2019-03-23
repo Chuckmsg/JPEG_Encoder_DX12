@@ -38,14 +38,14 @@ public:
 	{
 		return m_staging;
 	}
-	/*ID3D11ShaderResourceView*	GetResourceView()
+	ID3D12Resource*			GetResourceView()
 	{
-		return _ResourceView;
+		return m_SRV;
 	}
-	ID3D11UnorderedAccessView*	GetUnorderedAccessView()
+	ID3D12Resource*			GetUnorderedAccessView()
 	{
-		return _UnorderedAccessView;
-	}*/
+		return m_UAV;
+	}
 	void CopyToStaging()
 	{
 		m_commandList->CopyResource(m_staging, m_resource);
@@ -72,6 +72,7 @@ public:
 		m_resource = NULL;
 		m_staging = NULL;
 		m_commandList = NULL;
+		m_descHeap = NULL;
 	}
 
 	~DX12_ComputeBuffer()
@@ -82,8 +83,8 @@ public:
 	{
 		SAFE_RELEASE(m_resource);
 		SAFE_RELEASE(m_staging);
-		// Maybe not necessary
 		SAFE_RELEASE(m_commandList);
+		SAFE_RELEASE(m_descHeap);
 	}
 
 private:
@@ -91,10 +92,12 @@ private:
 
 	ID3D12Resource*				m_resource;
 	ID3D12Resource*				m_staging;
+
+	ID3D12Resource*				m_SRV;
+	ID3D12Resource*				m_UAV;
+
 	ID3D12GraphicsCommandList*	m_commandList;
-	//ID3D12DescriptorHeap*		m_descHeap;
-	//ID3D11ShaderResourceView*	_ResourceView;
-	//ID3D11UnorderedAccessView*	_UnorderedAccessView;
+	ID3D12DescriptorHeap*		m_descHeap;
 
 	friend class DX12_ComputeWrap;
 };
@@ -110,14 +113,15 @@ public:
 	{
 		return m_staging;
 	}
-	/*ID3D11ShaderResourceView*	GetResourceView()
+	ID3D12Resource*			GetResourceView()
 	{
-		return _ResourceView;
+		return m_SRV;
 	}
-	ID3D11UnorderedAccessView*	GetUnorderedAccessView()
+	ID3D12Resource*			GetUnorderedAccessView()
 	{
-		return _UnorderedAccessView;
-	}*/
+		return m_UAV;
+	}
+
 	void CopyToStaging()
 	{
 		m_commandList->CopyResource(m_staging, m_resource);
@@ -144,6 +148,7 @@ public:
 		m_resource = NULL;
 		m_staging = NULL;
 		m_commandList = NULL;
+		m_descHeap = NULL;
 	}
 
 	~DX12_ComputeTexture()
@@ -154,8 +159,8 @@ public:
 	{
 		SAFE_RELEASE(m_resource);
 		SAFE_RELEASE(m_staging);
-		// Maybe not necessary
 		SAFE_RELEASE(m_commandList);
+		SAFE_RELEASE(m_descHeap);
 	}
 
 private:
@@ -163,9 +168,13 @@ private:
 
 	ID3D12Resource*				m_resource;
 	ID3D12Resource*				m_staging;
+
+	ID3D12Resource*				m_SRV;
+	ID3D12Resource*				m_UAV;
+
+
 	ID3D12GraphicsCommandList*	m_commandList;
-	//ID3D11ShaderResourceView*	_ResourceView;
-	//ID3D11UnorderedAccessView*	_UnorderedAccessView;
+	ID3D12DescriptorHeap*		m_descHeap;
 
 	friend class DX12_ComputeWrap;
 };
@@ -188,6 +197,7 @@ private:
 public:
 	~DX12_ComputeShader();
 
+	// Not required (?)
 	void Set();
 	void Unset();
 };
@@ -199,7 +209,7 @@ class DX12_ComputeWrap
 	ID3D12DescriptorHeap*		m_descriptorHeap = NULL;
 	ID3D12CommandAllocator*		m_cmdAllocator = NULL;
 	ID3D12CommandQueue*			m_computeQueue = NULL;
-	ID3D12RootSignature*		m_rootSignature = NULL;
+	//ID3D12RootSignature*		m_rootSignature = NULL;
 
 	D3D12Wrap *					m_D3D12Wrap = NULL;
 
@@ -207,16 +217,22 @@ public:
 	DX12_ComputeWrap(
 		ID3D12Device* pDevice,
 		ID3D12GraphicsCommandList* pCommandList,
+		ID3D12DescriptorHeap* pHeap,
 		ID3D12CommandAllocator* pCmdAllocator,
-		ID3D12CommandQueue* pCmdQueue)
+		ID3D12CommandQueue* pCmdQueue,
+		D3D12Wrap* pWrap)
 	{
 		m_device = pDevice;
 		m_commandList = pCommandList;
+		m_descriptorHeap = pHeap;
+		m_cmdAllocator = pCmdAllocator;
+		m_computeQueue = pCmdQueue;
+		m_D3D12Wrap = pWrap;
 	}
 
 	DX12_ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* pFunctionName, D3D_SHADER_MACRO* pDefines);
 
-	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap * pHeap, UINT uSize, VOID* pInitData, char* debugName = NULL);
+	ID3D12Resource* CreateConstantBuffer(UINT uSize, VOID* pInitData, char* debugName = NULL);
 
 	DX12_ComputeBuffer* CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
 		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
@@ -227,23 +243,19 @@ public:
 	DX12_ComputeTexture* CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName = NULL);
 
 private:
-	struct ConstantBuffer
-	{
-
-	};
 
 	ID3D12Resource* CreateStructuredBuffer(UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
 	ID3D12Resource* CreateRawBuffer(UINT uSize, VOID* pInitData);
-	//ID3D11ShaderResourceView* CreateBufferSRV(ID3D11Buffer* pBuffer);
-	//ID3D11UnorderedAccessView* CreateBufferUAV(ID3D11Buffer* pBuffer);
+	void CreateBufferSRV(ID3D12Resource* pBuffer, UINT uElementSize, UINT uCount);
+	void CreateBufferUAV(ID3D12Resource* pBuffer, UINT uElementSize, UINT uCount);
 	ID3D12Resource* CreateStagingBuffer(UINT uSize);
 
 	//texture functions
 	ID3D12Resource* CreateTextureResource(DXGI_FORMAT dxFormat,
 		UINT uWidth, UINT uHeight, UINT uRowPitch, VOID* pInitData);
-	//ID3D11ShaderResourceView* CreateTextureSRV(ID3D12Resource* pTexture);
-	//ID3D11UnorderedAccessView* CreateTextureUAV(ID3D12Resource* pTexture);
-	ID3D12Resource* CreateStagingTexture(ID3D12Resource* pTexture);
+	void CreateTextureSRV(ID3D12Resource* pTexture);
+	void CreateTextureUAV(ID3D12Resource* pTexture);
+	void CreateStagingTexture(ID3D12Resource* pTexture);
 
 	unsigned char* LoadBitmapFileRGBA(TCHAR *filename, BITMAPINFOHEADER *bitmapInfoHeader);
 
