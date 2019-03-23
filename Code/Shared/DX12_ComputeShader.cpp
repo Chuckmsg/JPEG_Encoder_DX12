@@ -109,7 +109,8 @@ bool DX12_ComputeShader::Init(TCHAR * shaderFile, char * pFunctionName, D3D_SHAD
 	m_device = pDevice;
 	m_commandList = pCommandList;
 
-	ID3DBlob* pCompiledShader = NULL;
+	SAFE_RELEASE(m_computeShader);
+	m_computeShader = NULL;
 	ID3DBlob* pErrorBlob = NULL;
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined(DEBUG) || defined(_DEBUG)
@@ -120,16 +121,12 @@ bool DX12_ComputeShader::Init(TCHAR * shaderFile, char * pFunctionName, D3D_SHAD
 #endif
 
 	hr = D3DCompileFromFile(shaderFile, pDefines, NULL, pFunctionName, "cs_5_0",
-		dwShaderFlags, NULL, &pCompiledShader, &pErrorBlob);
+		dwShaderFlags, NULL, &m_computeShader, &pErrorBlob);
 
 	if (pErrorBlob)
 		OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
 
-	if (S_OK == hr)
-		m_computeShader = pCompiledShader;
-
 	SAFE_RELEASE(pErrorBlob);
-	SAFE_RELEASE(pCompiledShader);
 
 	return (hr == S_OK);
 }
@@ -138,6 +135,7 @@ DX12_ComputeShader::~DX12_ComputeShader()
 {
 	SAFE_RELEASE(m_computeShader);
 	SAFE_RELEASE(m_commandList);
+	SAFE_RELEASE(m_computeShader);
 }
 
 DX12_ComputeShader * DX12_ComputeWrap::CreateComputeShader(TCHAR * shaderFile, char * pFunctionName, D3D_SHADER_MACRO * pDefines)
