@@ -518,6 +518,7 @@ HRESULT SurfacePreperationDX12::Init(D3D12Wrap * pD3D12Wrap)
 {
 	m_device = pD3D12Wrap->GetDevice();
 	m_root = pD3D12Wrap->GetRootSignature();
+	m_D3D12Wrap = pD3D12Wrap;
 
 	HRESULT hr = _compileVertexShader();
 	if (FAILED(hr))
@@ -542,10 +543,53 @@ void SurfacePreperationDX12::Cleanup()
 DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Resource * texture, float outputScale)
 {
 	DX12_PreparedSurface result;
+	
+	//SAFE_RELEASE(m_heap);
+	//InitSRV(texture, texture->GetDesc().Format, m_heap);
 
-	SAFE_RELEASE(m_heap);
-	InitSRV(texture, texture->GetDesc().Format, &m_heap);
+	/*
+	// Copy the intermediate render target to the cross-adapter shared resource. 
+	// Transition barriers are not required since there are fences guarding against 
+	// concurrent read/write access to the shared heap. 
+	if (m_crossAdapterTextureSupport)
+	{
+		// If cross-adapter row-major textures are supported by the adapter, 
+		// simply copy the texture into the cross-adapter texture. 
+		m_copyCommandList->CopyResource(m_crossAdapterResources[adapter][m_frameIndex].Get(), m_renderTargets[adapter][m_frameIndex].Get());
+	}
+	else
+	{
+		// If cross-adapter row-major textures are not supported by the adapter, 
+		// the texture will be copied over as a buffer so that the texture row 
+		// pitch can be explicitly managed. 
 
+
+		// Copy the intermediate render target into the shared buffer using the 
+		// memory layout prescribed by the render target. 
+		D3D12_RESOURCE_DESC renderTargetDesc = m_renderTargets[adapter][m_frameIndex]->GetDesc();
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT renderTargetLayout;
+
+
+		m_devices[adapter]->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &renderTargetLayout, nullptr, nullptr, nullptr);
+
+
+		CD3DX12_TEXTURE_COPY_LOCATION dest(m_crossAdapterResources[adapter][m_frameIndex].Get(), renderTargetLayout);
+		CD3DX12_TEXTURE_COPY_LOCATION src(m_renderTargets[adapter][m_frameIndex].Get(), 0);
+		CD3DX12_BOX box(0, 0, m_width, m_height);
+
+
+		m_copyCommandList->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
+	}
+	*/
+	//Description for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.NumDescriptors = 1;
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_heap));
+	m_heap->SetName(L"Testing resource HEAP for JPeg Encoder");
+	InitSRV(texture, texture->GetDesc().Format, m_heap);
+
+	m_heap = m_D3D12Wrap->GetSRVHeap();
 	result.Width = texture->GetDesc().Width;
 	result.Height = texture->GetDesc().Height;
 	result.Heap = m_heap;
@@ -781,7 +825,7 @@ HRESULT SurfacePreperationDX12::_createPSO()
 	return hr;
 }
 
-HRESULT SurfacePreperationDX12::InitSRV(ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap ** outDescriptorHeap)
+HRESULT SurfacePreperationDX12::InitSRV(ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap *& outDescriptorHeap)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC desc;
 	desc.Format = format;
@@ -789,6 +833,6 @@ HRESULT SurfacePreperationDX12::InitSRV(ID3D12Resource * shaderResource, DXGI_FO
 	desc.Texture2D.MostDetailedMip = 0;
 	desc.Texture2D.MipLevels = 1;
 
-	m_device->CreateShaderResourceView(shaderResource, &desc, (*outDescriptorHeap)->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateShaderResourceView(shaderResource, &desc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	return S_OK;
 }

@@ -89,17 +89,23 @@ DX12_EncoderJEnc::~DX12_EncoderJEnc()
 	SAFE_DELETE(jEncoder420);
 }
 
-EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, CHROMA_SUBSAMPLE subsampleType, float outputScale, int jpegQuality)
+EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, unsigned char* Data, CHROMA_SUBSAMPLE subsampleType, float outputScale, int jpegQuality)
 {
 	EncodeResult result;
-	DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(textureResource, outputScale);
+	//DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(textureResource, outputScale);
 
-	DX12_JEncD3DDataDesc jD3D;
+	JEncRGBDataDesc jD3D;
+	jD3D.Data = Data;
+	jD3D.Width = textureResource->GetDesc().Width;
+	jD3D.Height = textureResource->GetDesc().Height;
+	jD3D.RowPitch = textureResource->GetDesc().Width * 4;
+
+	/*DX12_JEncD3DDataDesc jD3D;
 	jD3D.Width = ps.Width;
 	jD3D.Height = ps.Height;
-	jD3D.DescriptorHeap = ps.Heap;
+	jD3D.DescriptorHeap = ps.Heap;*/
 
-	VerifyDestinationBuffer(ps.Width, ps.Height);
+	VerifyDestinationBuffer(jD3D.Width, jD3D.Height);
 
 	jD3D.TargetMemory = destinationBuffer;
 
@@ -112,8 +118,8 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, CHR
 	result.Bits = jRes.Bits;
 	result.DataSize = jRes.DataSize;
 	result.HeaderSize = jRes.HeaderSize;
-	result.ImageWidth = ps.Width;
-	result.ImageHeight = ps.Height;
+	result.ImageWidth = jD3D.Width;
+	result.ImageHeight = jD3D.Height;
 
 	return result;
 }

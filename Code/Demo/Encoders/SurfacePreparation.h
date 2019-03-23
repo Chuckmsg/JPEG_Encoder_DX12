@@ -105,11 +105,12 @@ private:
 	ID3D10Blob * m_pixelShaderCode = NULL;
 
 	ID3D12DescriptorHeap* m_heap;
+	D3D12Wrap * m_D3D12Wrap;
 
 private:
 	HRESULT _compileVertexShader();
 	HRESULT _compilePixelShader();
 	HRESULT _createPSO();
 
-	HRESULT InitSRV(ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap** outDescriptorHeap);
+	HRESULT InitSRV(ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
 };

@@ -387,10 +387,24 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	id.NumBlocksX = mNumComputationBlocks_Y[0];
 	id.NumBlocksY = mNumComputationBlocks_Y[1];
 
+	//Description for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.NumDescriptors = 1;
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	mD3DDevice->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mCB_ImageData_Y_Heap));
+	mCB_ImageData_Y_Heap->SetName(L"RTV HEAP");
+
 	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(mCB_ImageData_Y_Heap, sizeof(ImageData), &id, "mCB_ImageData_Y");
 
 	id.NumBlocksX = mNumComputationBlocks_CbCr[0];
 	id.NumBlocksY = mNumComputationBlocks_CbCr[1];
+
+	//Description for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dhd2 = {};
+	dhd2.NumDescriptors = 1;
+	dhd2.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_ImageData_CbCr_Heap));
+	mCB_ImageData_CbCr_Heap->SetName(L"RTV HEAP");
 	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(mCB_ImageData_CbCr_Heap, sizeof(ImageData), &id, "mCB_ImageData_CbCr");
 
 
@@ -785,11 +799,6 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 
 	mDoCreateBuffers = true;
 
-	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue, d3dWrap);
-	mShader_Y_Component = NULL;
-	mShader_Cb_Component = NULL;
-	mShader_Cr_Component = NULL;
-	
 	HWND wHnd = GetActiveWindow();
 	assert(wHnd);
 
@@ -808,6 +817,12 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 		PostMessageBoxOnError(hr, L"Failed to create Allocators, Queues and Lists: ", L"Fatal error", MB_ICONERROR, wHnd);
 		exit(-1);
 	}
+
+	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue, d3dWrap);
+	mShader_Y_Component = NULL;
+	mShader_Cb_Component = NULL;
+	mShader_Cr_Component = NULL;
+	
 }
 
 DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()

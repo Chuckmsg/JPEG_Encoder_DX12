@@ -134,6 +134,8 @@ public:
 		SAFE_RELEASE(_Staging);
 		SAFE_RELEASE(m_DX12Resource);
 	}
+
+	unsigned char* bits;
 private:
 	ComputeTexture(const ComputeBuffer& cb) {}
 

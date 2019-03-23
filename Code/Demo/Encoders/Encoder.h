@@ -115,7 +115,7 @@ public:
 		}
 	}
 	
-	virtual EncodeResult DX12_Encode(ID3D12Resource* textureResource,
+	virtual EncodeResult DX12_Encode(ID3D12Resource* textureResource, unsigned char* Data,
 		CHROMA_SUBSAMPLE subsampleType,
 		float outputScale,
 		int jpegQuality) = 0;
