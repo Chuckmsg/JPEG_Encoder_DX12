@@ -279,7 +279,7 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, char * debugName)
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
-
+	buffer->m_commandList = m_commandList;
 	//Description for descriptor heap
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
