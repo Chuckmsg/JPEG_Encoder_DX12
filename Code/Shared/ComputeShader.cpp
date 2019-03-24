@@ -295,7 +295,7 @@ ComputeTexture* ComputeWrap::CreateTextureFromBitmap(TCHAR* textureFilename, cha
 
 	BITMAPINFOHEADER bitmapInfoHeader;
 	unsigned char* bits = LoadBitmapFileRGBA(textureFilename, &bitmapInfoHeader);
-	texture->bits = bits;
+	texture->bits = LoadBitmapFileRGBA(textureFilename, &bitmapInfoHeader);
 
 	if(bits != NULL)
 	{

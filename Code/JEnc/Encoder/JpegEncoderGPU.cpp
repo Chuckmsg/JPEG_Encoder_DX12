@@ -854,6 +854,7 @@ DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
 {
 	ReleaseQuantizationBuffers();
 	ReleaseBuffers();
+	SAFE_DELETE(mCT_RGBA);
 	ReleaseShaders();
 	shutdown();
 }
@@ -862,7 +863,7 @@ void DX12_JpegEncoderGPU::ReleaseBuffers()
 {
 	SAFE_RELEASE(mCB_ImageData_Y);
 	SAFE_RELEASE(mCB_ImageData_CbCr);
-	SAFE_DELETE(mCT_RGBA);
+	//SAFE_DELETE(mCT_RGBA);
 
 	SAFE_DELETE(mCB_EntropyResult);
 

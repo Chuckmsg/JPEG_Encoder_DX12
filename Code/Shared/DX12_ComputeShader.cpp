@@ -690,14 +690,14 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* te
 	ID3D12Resource * pTexture = NULL;
 
 	D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.MipLevels = 1;
+	textureDesc.Format = dxFormat;
 	textureDesc.Width = uWidth;
 	textureDesc.Height = uHeight;
-	textureDesc.MipLevels = 1;
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	textureDesc.DepthOrArraySize = 1;
-	textureDesc.Format = dxFormat;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	textureDesc.Alignment = 0;
 	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -722,6 +722,8 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* te
 
 	// Create GPU upload buffer
 	UINT64 uploadBufferSize = 0;
+	UINT64 uploadBufferRowSize = 0;
+	UINT uploadBufferRowCount = 0;
 	{
 		m_device->GetCopyableFootprints(
 			&textureDesc,
@@ -729,8 +731,8 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* te
 			1,
 			0,
 			nullptr,
-			nullptr,
-			nullptr,
+			&uploadBufferRowCount,
+			&uploadBufferRowSize,
 			&uploadBufferSize
 		);
 	}
