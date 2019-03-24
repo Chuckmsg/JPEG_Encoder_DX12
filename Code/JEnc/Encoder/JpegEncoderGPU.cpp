@@ -532,50 +532,69 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	}
 
 	//	Descriptor ranges for SRV, UAV and CBV
-	D3D12_DESCRIPTOR_RANGE descRangesSRVUAV[3];
+	D3D12_DESCRIPTOR_RANGE descRangesSRV[1];
+	{
+		//SRV, t0 - t4
+		{
+			descRangesSRV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			descRangesSRV[0].NumDescriptors = 5; // Do not know if this works
+			descRangesSRV[0].BaseShaderRegister = 0;
+			descRangesSRV[0].RegisterSpace = 0;
+			descRangesSRV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		}
+	}
+	//	Descriptor ranges for SRV, UAV and CBV
+	D3D12_DESCRIPTOR_RANGE descRangesCBV[1];
 	{
 		//CBV, b0
 		{
-			descRangesSRVUAV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-			descRangesSRVUAV[0].NumDescriptors = 1;
-			descRangesSRVUAV[0].BaseShaderRegister = 0;
-			descRangesSRVUAV[0].RegisterSpace = 0;
-			descRangesSRVUAV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		}
-		//UAV, u0
-		{
-			descRangesSRVUAV[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			descRangesSRVUAV[1].NumDescriptors = 1;
-			descRangesSRVUAV[1].BaseShaderRegister = 0;
-			descRangesSRVUAV[1].RegisterSpace = 0;
-			descRangesSRVUAV[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		}
-		//SRV, t0 - t4
-		{
-			descRangesSRVUAV[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			descRangesSRVUAV[2].NumDescriptors = 5; // Do not know if this works
-			descRangesSRVUAV[2].BaseShaderRegister = 0;
-			descRangesSRVUAV[2].RegisterSpace = 0;
-			descRangesSRVUAV[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+			descRangesCBV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			descRangesCBV[0].NumDescriptors = 1;
+			descRangesCBV[0].BaseShaderRegister = 0;
+			descRangesCBV[0].RegisterSpace = 0;
+			descRangesCBV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
+	//	Descriptor ranges for SRV, UAV and CBV
+	D3D12_DESCRIPTOR_RANGE descRangesUAV[1];
+	{
+		//CBV, b0
+		{
+			descRangesUAV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+			descRangesUAV[0].NumDescriptors = 1;
+			descRangesUAV[0].BaseShaderRegister = 0;
+			descRangesUAV[0].RegisterSpace = 0;
+			descRangesUAV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		}
+	}
+
 	//Create necessary Descriptor Tables
-	D3D12_ROOT_DESCRIPTOR_TABLE descTables[2];
+	D3D12_ROOT_DESCRIPTOR_TABLE descTables[4];
 	{
 		// Descriptor Table for the sampler
 		{
 			descTables[0].NumDescriptorRanges = _ARRAYSIZE(descRangesSampler); //how many descriptors for this table
 			descTables[0].pDescriptorRanges = &descRangesSampler[0]; //pointer to descriptor array
 		}
-		// Descriptor Table for the SRV, UAV and CBV descriptors
+		// Descriptor Table for the SRV descriptors
 		{
-			descTables[1].NumDescriptorRanges = _ARRAYSIZE(descRangesSRVUAV); //how many descriptors for this table
-			descTables[1].pDescriptorRanges = &descRangesSRVUAV[0]; //pointer to descriptor array
+			descTables[1].NumDescriptorRanges = _ARRAYSIZE(descRangesSRV); //how many descriptors for this table
+			descTables[1].pDescriptorRanges = &descRangesSRV[0]; //pointer to descriptor array
+		}
+		// Descriptor Table for the UAV descriptors
+		{
+			descTables[2].NumDescriptorRanges = _ARRAYSIZE(descRangesUAV); //how many descriptors for this table
+			descTables[2].pDescriptorRanges = &descRangesUAV[0]; //pointer to descriptor array
+		}
+		// Descriptor Table for the CBV descriptors
+		{
+			descTables[3].NumDescriptorRanges = _ARRAYSIZE(descRangesCBV); //how many descriptors for this table
+			descTables[3].pDescriptorRanges = &descRangesCBV[0]; //pointer to descriptor array
 		}
 	}
 
 	//Create the root parameters. Only two descriptor tables, one for sampler and the other for the SRV, UAV and CBV descriptors
-	D3D12_ROOT_PARAMETER rootParams[2];
+	D3D12_ROOT_PARAMETER rootParams[4];
 	{
 		// [0] - Descriptor table for smpler descriptors
 		{
@@ -583,14 +602,27 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			rootParams[0].DescriptorTable = descTables[0];
 			rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		}
-		// [1] - Descriptor table for SRV, UAV and CBV descriptors
+		// [1] - Descriptor table for SRV descriptors
 		{
 			rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			rootParams[1].DescriptorTable = descTables[1];
 			rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		}
-	}
 
+		// [2] - Descriptor table for UAV descriptors
+		{
+			rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[2].DescriptorTable = descTables[2];
+			rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		}
+
+		// [3] - Descriptor table for CBV descriptors
+		{
+			rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[3].DescriptorTable = descTables[3];
+			rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		}
+	}
 
 	//Create the descriptions of the root signature
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
@@ -992,16 +1024,27 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	// Set necessary state.
 	mDirectList->SetComputeRootSignature(mRootSignature);
 
+	/*
+		Root parameters:
+			[0] = samplaer
+			[1] = SRV, t0 - t4
+			[2] = UAV
+			[3] = CBV
+	*/
+
 	//Set the SRV and UAV descriptor heaps
 	ID3D12DescriptorHeap * srvHeap[] = { 
 		mCB_DCT_Matrix->GetHeap(),
 		mCB_DCT_Matrix_Transpose->GetHeap(),
 		pSRV ? pSRV : (mCT_RGBA ? mCT_RGBA->GetHeap() : NULL)
 	};
-	mDirectList->SetDescriptorHeaps(3, srvHeap);
-	mDirectList->SetComputeRootDescriptorTable(0, srvHeap[0]->GetGPUDescriptorHandleForHeapStart()); // t0
+	
+	mDirectList->SetDescriptorHeaps(1, &srvHeap[0]);
+	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[0]->GetGPUDescriptorHandleForHeapStart()); // t0
+	mDirectList->SetDescriptorHeaps(1, &srvHeap[1]);
 	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[1]->GetGPUDescriptorHandleForHeapStart()); // t1
-	mDirectList->SetComputeRootDescriptorTable(2, srvHeap[2]->GetGPUDescriptorHandleForHeapStart()); // t2
+	mDirectList->SetDescriptorHeaps(1, &srvHeap[2]);
+	mDirectList->SetComputeRootDescriptorTable(1, srvHeap[2]->GetGPUDescriptorHandleForHeapStart()); // t2
 	
 	// Set sampler descriptor heap
 	ID3D12DescriptorHeap * samplerHeap[] = { mCB_SamplerState_PointClamp };
@@ -1042,21 +1085,31 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 
 void DX12_JpegEncoderGPU::Dispatch()
 {
+
+	/*
+		Root parameters:
+			[0] = samplaer
+			[1] = SRV, t0 - t4
+			[2] = UAV
+			[3] = CBV
+	*/
+
 	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
 	mDirectList->SetDescriptorHeaps(1, uavHeap);
-	mDirectList->SetComputeRootDescriptorTable(0, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
+	mDirectList->SetComputeRootDescriptorTable(2, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
 
 	ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
 		mCB_Y_Quantization_Table->GetHeap(),
 		mCB_Huff_Y_AC->GetHeap()
 	};
-	mDirectList->SetDescriptorHeaps(2, srv_Huffman_Y);
-	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart()); // t3
-	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_Y[1]->GetGPUDescriptorHandleForHeapStart()); // t4
+	mDirectList->SetDescriptorHeaps(1, &srv_Huffman_Y[0]);
+	mDirectList->SetComputeRootDescriptorTable(1, srv_Huffman_Y[0]->GetGPUDescriptorHandleForHeapStart()); // t3
+	mDirectList->SetDescriptorHeaps(1, &srv_Huffman_Y[1]);
+	mDirectList->SetComputeRootDescriptorTable(1, srv_Huffman_Y[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
 	ID3D12DescriptorHeap * cb_ImageData_Y[] = { mCB_ImageData_Y_Heap };
 	mDirectList->SetDescriptorHeaps(1, cb_ImageData_Y);
-	mDirectList->SetComputeRootDescriptorTable(0, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart()); // b0
+	mDirectList->SetComputeRootDescriptorTable(3, cb_ImageData_Y[0]->GetGPUDescriptorHandleForHeapStart()); // b0
 	
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
 	D3D12_RESOURCE_BARRIER barrier{};
@@ -1079,13 +1132,14 @@ void DX12_JpegEncoderGPU::Dispatch()
 		mCB_CbCr_Quantization_Table->GetHeap(),
 		mCB_Huff_CbCr_AC->GetHeap()
 	};
-	mDirectList->SetDescriptorHeaps(2, srv_Huffman_CbCr);
-	mDirectList->SetComputeRootDescriptorTable(3, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart()); // t3
-	mDirectList->SetComputeRootDescriptorTable(4, srv_Huffman_CbCr[1]->GetGPUDescriptorHandleForHeapStart()); // t4
+	mDirectList->SetDescriptorHeaps(1, &srv_Huffman_CbCr[0]);
+	mDirectList->SetComputeRootDescriptorTable(1, srv_Huffman_CbCr[0]->GetGPUDescriptorHandleForHeapStart()); // t3
+	mDirectList->SetDescriptorHeaps(1, &srv_Huffman_CbCr[1]);
+	mDirectList->SetComputeRootDescriptorTable(1, srv_Huffman_CbCr[1]->GetGPUDescriptorHandleForHeapStart()); // t4
 
 	ID3D12DescriptorHeap * constantBuffer[] = { mCB_ImageData_CbCr_Heap };
 	mDirectList->SetDescriptorHeaps(1, constantBuffer);
-	mDirectList->SetComputeRootDescriptorTable(0, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart()); // bo
+	mDirectList->SetComputeRootDescriptorTable(3, constantBuffer[0]->GetGPUDescriptorHandleForHeapStart()); // b0
 
 	// Dispatch Cb component
 	mDirectList->SetPipelineState(mPSO_Cb_Component);
