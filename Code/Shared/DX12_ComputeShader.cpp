@@ -284,6 +284,7 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uTy
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&buffer->m_descHeap))))
 		return nullptr;
 	buffer->m_descHeap->SetName((LPCWSTR)(debugName));
@@ -322,6 +323,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&texture->m_descHeap))))
 		return nullptr;
 	texture->m_descHeap->SetName((LPCWSTR)(debugName));
@@ -376,6 +378,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(TCHAR * textureF
 			D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 			dhd.NumDescriptors = 1;
 			dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&texture->m_descHeap))))
 				return nullptr;
 			CreateTextureSRV(texture);

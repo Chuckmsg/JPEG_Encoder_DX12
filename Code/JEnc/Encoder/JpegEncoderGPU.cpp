@@ -391,6 +391,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	HRESULT hr = mD3DDevice->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mCB_ImageData_Y_Heap));
 	if (hr < 0)
 	{
@@ -409,6 +410,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	D3D12_DESCRIPTOR_HEAP_DESC dhd2 = {};
 	dhd2.NumDescriptors = 1;
 	dhd2.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd2.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	hr = mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_ImageData_CbCr_Heap));
 	if (hr < 0)
 	{
@@ -434,6 +436,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	D3D12_DESCRIPTOR_HEAP_DESC dhd3 = {};
 	dhd2.NumDescriptors = 1;
 	dhd2.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	dhd2.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	hr = mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_SamplerState_PointClamp));
 	if (hr < 0)
 	{
