@@ -197,6 +197,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Shared\ComputeShader.cpp" />
+    <ClCompile Include="..\Shared\D3DProfiler.cpp" />
     <ClCompile Include="D3DWrap\D3DWrap.cpp" />
     <ClCompile Include="Encoders\EncoderJEnc.cpp" />
     <ClCompile Include="Encoders\SurfacePreparation.cpp" />
@@ -204,6 +205,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\ComputeShader.h" />
+    <ClInclude Include="..\Shared\D3DProfiler.h" />
     <ClInclude Include="..\Shared\DX_12Helper.h" />
     <ClInclude Include="D3DWrap\D3DWrap.h" />
     <ClInclude Include="Encoders\Encoder.h" />

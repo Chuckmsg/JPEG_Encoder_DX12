@@ -11,6 +11,7 @@
 #include "../Shared/ComputeShader.h"
 #include "JEncWrap\MJPEG.h"
 #include "Encoders\EncoderJEnc.h"
+#include "../Shared/D3DProfiler.h"
 
 DX12_EncoderJEnc* jencEncoder = nullptr;
 SurfacePreperationDX12 gSurfacePrepDX12;
@@ -34,6 +35,9 @@ ComputeShader*			gBackbufferShader	= NULL;
 ComputeTexture*			gTexture			= NULL;
 ID3D11Buffer*			gConstantBuffer		= NULL;
 ID3D11SamplerState*		gSamplerState		= NULL;
+
+D3DProfiler* d3d11Profiler = NULL;
+unsigned int FrameTimeIndex = 0;
 
 //DX12 Globals
 bool DX12				= false;
@@ -132,6 +136,10 @@ HRESULT Init(HWND hwnd, int width, int height)
 
 		if(FAILED(gD3D.GetDevice()->CreateSamplerState(&samplerDesc, &gSamplerState)))
 			return E_FAIL;
+
+		d3d11Profiler = new D3DProfiler(gD3D.GetDevice(), gD3D.GetDeviceContext());
+		d3d11Profiler->Init(D3DProfiler::DX11);
+		FrameTimeIndex = d3d11Profiler->CreateTimestamp("FrameTime");
 	}
 
 	return hr;
@@ -159,6 +167,8 @@ HRESULT Cleanup()
 	{
 		gD3D.Cleanup();
 		gSurfacePrep.Cleanup();
+		d3d11Profiler->CleanUp();
+		delete d3d11Profiler;
 	}
 
 	return S_OK;
@@ -222,6 +232,8 @@ HRESULT Render(float deltaTime, HWND hwnd)
 {
 	if (DX12)
 		return RenderDX12(deltaTime, hwnd);
+	d3d11Profiler->StartProfiler();
+	d3d11Profiler->BeginTimestamp(FrameTimeIndex);
 	//samplers for surface prep and backbuffer fill, ugly but hey :-)
 	gD3D.GetDeviceContext()->PSSetSamplers(0, 1, &gSamplerState);
 	gD3D.GetDeviceContext()->CSSetSamplers(0, 1, &gSamplerState);
@@ -306,6 +318,14 @@ HRESULT Render(float deltaTime, HWND hwnd)
 	SetWindowText(hwnd, title);
 
 	gD3D.Present();
+
+	d3d11Profiler->EndTimestamp(FrameTimeIndex);
+	d3d11Profiler->EndProfiler();
+
+#ifdef _DEBUG
+	d3d11Profiler->CalculateAllDurations();
+	d3d11Profiler->PrintAllToDebugOutput();
+#endif // _DEBUG
 
 	return S_OK;
 }
