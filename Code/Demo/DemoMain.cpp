@@ -153,6 +153,7 @@ HRESULT Cleanup()
 
 	SAFE_DELETE(jencEncoder);
 	SAFE_DELETE(gEncJEnc);
+	SAFE_DELETE(gTexture->bits);
 	SAFE_DELETE(gTexture);
 	SAFE_DELETE(gBackbufferShader);
 	SAFE_DELETE(gComputeWrap);
