@@ -248,26 +248,26 @@ public:
 
 	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID* pInitData, char* debugName = NULL);
 
-	DX12_ComputeBuffer* CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
+	DX12_ComputeBuffer* CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
 		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
 
-	DX12_ComputeTexture* CreateTexture(DXGI_FORMAT dxFormat, UINT uWidth,
+	DX12_ComputeTexture* CreateTexture(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DXGI_FORMAT dxFormat, UINT uWidth,
 		UINT uHeight, UINT uRowPitch, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
 
-	DX12_ComputeTexture* CreateTextureFromBitmap(TCHAR* textureFilename, char* debugName = NULL);
+	DX12_ComputeTexture* CreateTextureFromBitmap(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, TCHAR* textureFilename, char* debugName = NULL);
 
 private:
 
-	ID3D12Resource* CreateStructuredBuffer(DX12_ComputeBuffer* buffer, UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
+	ID3D12Resource* CreateStructuredBuffer(DX12_ComputeBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
 	ID3D12Resource* CreateRawBuffer(UINT uSize, VOID* pInitData);
-	void CreateBufferSRV(DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
+	void CreateBufferSRV(DX12_ComputeBuffer* pBuffer, D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, UINT uElementSize, UINT uCount);
 	void CreateBufferUAV(/*ID3D12Resource* */DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
 	ID3D12Resource* CreateStagingBuffer(UINT uSize);
 
 	//texture functions
-	ID3D12Resource* CreateTextureResource(DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat,
+	ID3D12Resource* CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat,
 		UINT uWidth, UINT uHeight, UINT uRowPitch, VOID* pInitData);
-	void CreateTextureSRV(DX12_ComputeTexture* pTexture);
+	void CreateTextureSRV(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture* pTexture);
 	void CreateTextureUAV(DX12_ComputeTexture* pTexture);
 	void CreateStagingTexture(ID3D12Resource* pTexture);
 

@@ -275,7 +275,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(ID3D12DescriptorHeap*& d
 	return pBuffer;
 }
 
-DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize, UINT uCount,
+DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize, UINT uCount,
 	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, char * debugName)
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
@@ -290,7 +290,7 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uTy
 	buffer->m_descHeap->SetName((LPCWSTR)(debugName));
 
 	if (DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER == uType)
-		buffer->m_resource = CreateStructuredBuffer(buffer, uElementSize, uCount, bSRV, bUAV, pInitData);
+		buffer->m_resource = CreateStructuredBuffer(buffer, cpuDescHandle, uElementSize, uCount, bSRV, bUAV, pInitData);
 	else if (DX12_COMPUTE_BUFFER_TYPE::DX12_RAW_BUFFER == uType)
 		buffer->m_resource = CreateRawBuffer(uElementSize * uCount, pInitData);
 
@@ -312,10 +312,16 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(DX12_COMPUTE_BUFFER_TYPE uTy
 			buffer->m_UAV->SetName(LPCWSTR(debugName));
 	}
 
+	if (bSRV)
+	{
+		UINT srvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		cpuDescHandle.ptr += srvDescSize;
+	}
+
 	return buffer;
 }
 
-DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData, bool bCreateStaging, char * debugName)
+DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData, bool bCreateStaging, char * debugName)
 {
 	DX12_ComputeTexture* texture = new DX12_ComputeTexture();
 	
@@ -328,7 +334,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT
 		return nullptr;
 	texture->m_descHeap->SetName((LPCWSTR)(debugName));
 
-	texture->m_resource = CreateTextureResource(texture, dxFormat, uWidth, uHeight, uRowPitch, pInitData);
+	texture->m_resource = CreateTextureResource(cpuDescHandle, texture, dxFormat, uWidth, uHeight, uRowPitch, pInitData);
 
 	if (NULL != texture->m_resource)
 	{
@@ -352,10 +358,13 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(DXGI_FORMAT dxFormat, UINT
 			texture->m_UAV->SetName(LPCWSTR(debugName));
 	}
 
+	UINT srvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	cpuDescHandle.ptr += srvDescSize;
+
 	return texture;
 }
 
-DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(TCHAR * textureFilename, char * debugName)
+DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, TCHAR * textureFilename, char * debugName)
 {
 	DX12_ComputeTexture* texture = new DX12_ComputeTexture();
 	BITMAPINFOHEADER bitmapInfoHeader;
@@ -363,7 +372,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(TCHAR * textureF
 
 	if (NULL != bits)
 	{
-		texture->m_resource = CreateTextureResource(texture,
+		texture->m_resource = CreateTextureResource(cpuDescHandle, texture,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
 			bitmapInfoHeader.biWidth,
 			bitmapInfoHeader.biHeight,
@@ -381,7 +390,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(TCHAR * textureF
 			dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&texture->m_descHeap))))
 				return nullptr;
-			CreateTextureSRV(texture);
+			CreateTextureSRV(cpuDescHandle, texture);
 
 			if (debugName)
 			{
@@ -400,7 +409,7 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(TCHAR * textureF
 	return texture;
 }
 
-ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* buffer, UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID * pInitData)
+ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* buffer, D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID * pInitData)
 {
 	ID3D12Resource* pResource = NULL;
 
@@ -523,7 +532,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* bu
 		m_commandList->ResourceBarrier(1, &barrier);
 
 		if (bSRV)
-			CreateBufferSRV(buffer, uElementSize, uCount);
+			CreateBufferSRV(buffer, cpuDescHandle, uElementSize, uCount);
 		if (bUAV)
 			CreateBufferUAV(buffer, uElementSize, uCount);
 
@@ -640,7 +649,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateRawBuffer(UINT uSize, VOID * pInitData)
 	return pResource;
 }
 
-void DX12_ComputeWrap::CreateBufferSRV(DX12_ComputeBuffer * pBuffer, UINT uElementSize, UINT uCount)
+void DX12_ComputeWrap::CreateBufferSRV(DX12_ComputeBuffer * pBuffer, D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, UINT uElementSize, UINT uCount)
 {
 	/*D3D12_RESOURCE_DESC descBuff;
 	ZeroMemory(&descBuff, sizeof(descBuff));
@@ -661,7 +670,7 @@ void DX12_ComputeWrap::CreateBufferSRV(DX12_ComputeBuffer * pBuffer, UINT uEleme
 	
 	// else NULL
 
-	m_device->CreateShaderResourceView(pBuffer->GetResource(), &desc, pBuffer->GetHeap()->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateShaderResourceView(pBuffer->GetResource(), &desc, cpuDescHandle);
 }
 
 void DX12_ComputeWrap::CreateBufferUAV(DX12_ComputeBuffer * pBuffer, UINT uElementSize, UINT uCount)
@@ -688,7 +697,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateStagingBuffer(UINT uSize)
 	return nullptr;
 }
 
-ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData)
+ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData)
 {
 	ID3D12Resource * pTexture = NULL;
 
@@ -800,7 +809,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* te
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	m_device->CreateShaderResourceView(pTexture, &srvDesc, texture->GetHeap()->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateShaderResourceView(pTexture, &srvDesc, cpuDescHandle);
 
 	// Close the command list and execute it
 	m_commandList->Close();
@@ -816,7 +825,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(DX12_ComputeTexture* te
 	return pTexture;
 }
 
-void DX12_ComputeWrap::CreateTextureSRV(DX12_ComputeTexture * pTexture)
+void DX12_ComputeWrap::CreateTextureSRV(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture * pTexture)
 {
 	D3D12_RESOURCE_DESC desc;
 	desc = pTexture->GetResource()->GetDesc();
@@ -829,7 +838,7 @@ void DX12_ComputeWrap::CreateTextureSRV(DX12_ComputeTexture * pTexture)
 	viewDesc.ViewDimension =		D3D12_SRV_DIMENSION_TEXTURE2D;
 	viewDesc.Texture2D.MipLevels =	desc.MipLevels;
 	
-	m_device->CreateShaderResourceView(pTexture->GetResource(), &viewDesc, pTexture->GetHeap()->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateShaderResourceView(pTexture->GetResource(), &viewDesc, cpuDescHandle);
 }
 
 void DX12_ComputeWrap::CreateTextureUAV(DX12_ComputeTexture * pTexture)

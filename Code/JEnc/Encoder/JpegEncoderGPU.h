@@ -172,6 +172,16 @@ protected:
 
 	//sampler state used to repeat border pixels
 	ID3D12DescriptorHeap*	mCB_SamplerState_PointClamp = nullptr;
+
+	SIZE_T ptrToDescHeapImage;
+	SIZE_T ptrToCB_DCT_Matrix;
+	ID3D12DescriptorHeap*	mDescHeapSRVs = nullptr;
+	SIZE_T Y_ptrToHuff;
+	SIZE_T Y_ptrToQuantizationTable;
+	ID3D12DescriptorHeap*	mDescHeapSRVsY = nullptr;
+	SIZE_T CbCr_ptrToHuff;
+	SIZE_T CbCr_ptrToQuantizationTable;
+	ID3D12DescriptorHeap*	mDescHeapSRVsCbCr = nullptr;
 	
 	//Texture used if RGB data sent for encoding
 	DX12_ComputeTexture*				mCT_RGBA; // Texture, SRV
@@ -195,6 +205,7 @@ private:
 	int CalculateBufferSize(int quality);
 
 	// New functions
+	HRESULT createDescriptorHeapForSRVs();
 	HRESULT createRootSignature();
 	HRESULT createAllocatorQueueList();
 	void UpdateQuantizationTable(DX12_ComputeBuffer* quantizationTable, float* quantizationTableFloat);
