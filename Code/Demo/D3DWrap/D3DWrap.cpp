@@ -248,9 +248,11 @@ void D3D12Wrap::Cleanup()
 	SAFE_RELEASE(m_srvHeap);
 	SAFE_RELEASE(Fences[0].m_fence);
 	SAFE_RELEASE(Fences[1].m_fence);
+	SAFE_RELEASE(TestFence.m_fence);
 
 	CloseHandle(Fences[0].m_fenceEvent);
 	CloseHandle(Fences[1].m_fenceEvent);
+	CloseHandle(TestFence.m_fenceEvent);
 }
 
 IDXGIAdapter1 * D3D12Wrap::_findDX12Adapter(IDXGIFactory5 ** ppFactory)
@@ -486,6 +488,13 @@ HRESULT D3D12Wrap::_createFences()
 	Fences[1].m_fenceValue = 1;
 	Fences[1].m_fence->SetName(L"Direct_Fence");
 	Fences[1].m_fenceEvent = CreateEvent(0, false, false, 0);
+
+	hr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&TestFence.m_fence));
+	if (FAILED(hr))
+		return hr;
+	TestFence.m_fenceValue = 1;
+	TestFence.m_fence->SetName(L"Encoder Fence");
+	TestFence.m_fenceEvent = CreateEvent(0, false, false, 0);
 
 	return hr;
 }

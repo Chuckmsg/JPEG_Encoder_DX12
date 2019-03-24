@@ -391,8 +391,14 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	mD3DDevice->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mCB_ImageData_Y_Heap));
-	mCB_ImageData_Y_Heap->SetName(L"RTV HEAP");
+	HRESULT hr = mD3DDevice->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mCB_ImageData_Y_Heap));
+	if (hr < 0)
+	{
+		return E_FAIL;
+	}
+	//if (FAILED(mD3DDevice->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mCB_ImageData_Y_Heap))))
+	//	return E_FAIL;
+	mCB_ImageData_Y_Heap->SetName(L"mCB_ImageData_Y_Heap HEAP");
 
 	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(mCB_ImageData_Y_Heap, sizeof(ImageData), &id, "mCB_ImageData_Y");
 
@@ -403,8 +409,12 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	D3D12_DESCRIPTOR_HEAP_DESC dhd2 = {};
 	dhd2.NumDescriptors = 1;
 	dhd2.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_ImageData_CbCr_Heap));
-	mCB_ImageData_CbCr_Heap->SetName(L"RTV HEAP");
+	hr = mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_ImageData_CbCr_Heap));
+	if (hr < 0)
+	{
+		return E_FAIL;
+	}
+	mCB_ImageData_CbCr_Heap->SetName(L"mCB_ImageData_CbCr_Heap HEAP");
 	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(mCB_ImageData_CbCr_Heap, sizeof(ImageData), &id, "mCB_ImageData_CbCr");
 
 
@@ -419,6 +429,17 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; //ALWAYS;
 	samplerDesc.MinLOD = 0; //-D3D11_FLOAT32_MAX;
 	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+	//Description for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC dhd3 = {};
+	dhd2.NumDescriptors = 1;
+	dhd2.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	hr = mD3DDevice->CreateDescriptorHeap(&dhd2, IID_PPV_ARGS(&mCB_SamplerState_PointClamp));
+	if (hr < 0)
+	{
+		return E_FAIL;
+	}
+	mCB_SamplerState_PointClamp->SetName(L"mCB_SamplerState_PointClamp HEAP");
 
 	mD3DDevice->CreateSampler(&samplerDesc, mCB_SamplerState_PointClamp->GetCPUDescriptorHandleForHeapStart());
 	
@@ -597,18 +618,22 @@ HRESULT DX12_JpegEncoderGPU::createAllocatorQueueList()
 	// Create direct allocator, command queue and command list
 	D3D12_COMMAND_QUEUE_DESC descDirectQueue = { D3D12_COMMAND_LIST_TYPE_DIRECT, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
 	
-	mD3DDevice->CreateCommandQueue(&descDirectQueue, IID_PPV_ARGS(&mDirectQueue));
+	if (FAILED(mD3DDevice->CreateCommandQueue(&descDirectQueue, IID_PPV_ARGS(&mDirectQueue))))
+		return E_FAIL;
 
-	mD3DDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mDirectAllocator));
+	if (FAILED(mD3DDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mDirectAllocator))))
+		return E_FAIL;
 
-	mD3DDevice->CreateCommandList(
+	if (FAILED(mD3DDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		mDirectAllocator,
 		mPSO_Y_Component,
 		IID_PPV_ARGS(&mDirectList)
-	);
+	)))
+		return E_FAIL;
 
+	mDirectList->Close();
 	// Create copy allocator, command queue and command list
 	D3D12_COMMAND_QUEUE_DESC descCopyQueue = { D3D12_COMMAND_LIST_TYPE_COPY, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
 
@@ -623,7 +648,7 @@ HRESULT DX12_JpegEncoderGPU::createAllocatorQueueList()
 		mPSO_Y_Component,
 		IID_PPV_ARGS(&mCopyList)
 	);
-
+	mCopyList->Close();
 	return S_OK;
 }
 
@@ -924,7 +949,7 @@ void DX12_JpegEncoderGPU::WriteImageData(JEncRGBDataDesc rgbDataDesc)
 	if (!mCT_RGBA)
 	{
 		mCT_RGBA = mComputeSys->CreateTexture(DXGI_FORMAT_R8G8B8A8_UNORM,
-			rgbDataDesc.Width, rgbDataDesc.Height, rgbDataDesc.RowPitch, rgbDataDesc.Data);
+			rgbDataDesc.Width, rgbDataDesc.Height, rgbDataDesc.RowPitch, rgbDataDesc.Data, false, "WriteImageDataTexture HEAP");
 	}
 
 	if (mDoCreateBuffers)

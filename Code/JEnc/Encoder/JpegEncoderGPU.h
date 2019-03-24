@@ -129,7 +129,7 @@ protected:
 	//ID3D12Resource* imageResource;
 
 	//D3D
-	ID3D12Device*				mD3DDevice;
+	ID3D12Device*				mD3DDevice = nullptr;
 
 	// Pipeline State object
 	ID3D12PipelineState* mPSO_Y_Component = nullptr;
@@ -141,15 +141,15 @@ protected:
 	ID3D12CommandQueue* mCopyQueue = nullptr;
 	ID3D12CommandAllocator * mDirectAllocator = nullptr;
 	ID3D12CommandAllocator * mCopyAllocator = nullptr;
-	ID3D12GraphicsCommandList*	mDirectList;
-	ID3D12GraphicsCommandList*	mCopyList;
+	ID3D12GraphicsCommandList*	mDirectList = nullptr;
+	ID3D12GraphicsCommandList*	mCopyList = nullptr;
 
 	//Constant buffers holding image and compute information
 	//ID3D11Buffer = ID3D12ShaderReflectionConstantBuffer?
-	ID3D12Resource*				mCB_ImageData_Y; // CBV
-	ID3D12Resource*				mCB_ImageData_CbCr; // CBV
-	ID3D12DescriptorHeap*		mCB_ImageData_Y_Heap;
-	ID3D12DescriptorHeap*		mCB_ImageData_CbCr_Heap;
+	ID3D12Resource*				mCB_ImageData_Y = nullptr; // CBV
+	ID3D12Resource*				mCB_ImageData_CbCr = nullptr; // CBV
+	ID3D12DescriptorHeap*		mCB_ImageData_Y_Heap = nullptr;
+	ID3D12DescriptorHeap*		mCB_ImageData_CbCr_Heap = nullptr;
 
 	//Compute shaders for each ycbcr component
 	DX12_ComputeWrap*				mComputeSys;
@@ -171,7 +171,7 @@ protected:
 	DX12_ComputeBuffer*				mCB_CbCr_Quantization_Table; // SRV
 
 	//sampler state used to repeat border pixels
-	ID3D12DescriptorHeap*	mCB_SamplerState_PointClamp;
+	ID3D12DescriptorHeap*	mCB_SamplerState_PointClamp = nullptr;
 	
 	//Texture used if RGB data sent for encoding
 	DX12_ComputeTexture*				mCT_RGBA; // Texture, SRV

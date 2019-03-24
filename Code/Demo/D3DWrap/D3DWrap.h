@@ -53,6 +53,7 @@ public:
 	};
 
 	DX12Fence * GetFence(UINT index) { return &Fences[index]; }
+	DX12Fence * GetTestFence() { return &TestFence; }
 
 	HRESULT Init(HWND hwnd, int width, int height);
 	void Cleanup();
@@ -87,8 +88,9 @@ public:
 		const UINT64 fenceValue = fence->m_fenceValue ;
 		pCmdQ->Signal(fence->m_fence, fenceValue);
 		fence->m_fenceValue++;
-
-		if (fence->m_fence->GetCompletedValue() < fenceValue)
+		
+		auto lol = fence->m_fence->GetCompletedValue();
+		if (lol < fenceValue)
 		{
 			fence->m_fence->SetEventOnCompletion(fenceValue, fence->m_fenceEvent);
 			WaitForSingleObject(fence->m_fenceEvent, INFINITE);
@@ -122,6 +124,7 @@ private:
 	ID3D12DescriptorHeap* m_srvHeap								= NULL;
 	//Fences
 	DX12Fence Fences[2]														= {};
+	DX12Fence TestFence;
 private:
 	IDXGIAdapter1 * _findDX12Adapter(IDXGIFactory5 ** ppFactory);
 	HRESULT _createDevice(IDXGIFactory5 ** ppFactory, IDXGIAdapter1 ** ppAdapter);

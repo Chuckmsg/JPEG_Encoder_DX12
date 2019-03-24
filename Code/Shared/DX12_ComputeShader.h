@@ -73,6 +73,8 @@ public:
 		m_staging = NULL;
 		m_commandList = NULL;
 		m_descHeap = NULL;
+		m_SRV = NULL;
+		m_UAV = NULL;
 	}
 
 	~DX12_ComputeBuffer()
@@ -154,6 +156,8 @@ public:
 		m_staging = NULL;
 		m_commandList = NULL;
 		m_descHeap = NULL;
+		m_SRV = NULL;
+		m_UAV = NULL;
 	}
 
 	~DX12_ComputeTexture()
@@ -254,17 +258,17 @@ public:
 
 private:
 
-	ID3D12Resource* CreateStructuredBuffer(UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
+	ID3D12Resource* CreateStructuredBuffer(DX12_ComputeBuffer* buffer, UINT uElementSize, UINT uCount, bool bSRV, bool bUAV, VOID* pInitData);
 	ID3D12Resource* CreateRawBuffer(UINT uSize, VOID* pInitData);
-	void CreateBufferSRV(ID3D12Resource* pBuffer, UINT uElementSize, UINT uCount);
-	void CreateBufferUAV(ID3D12Resource* pBuffer, UINT uElementSize, UINT uCount);
+	void CreateBufferSRV(DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
+	void CreateBufferUAV(/*ID3D12Resource* */DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
 	ID3D12Resource* CreateStagingBuffer(UINT uSize);
 
 	//texture functions
-	ID3D12Resource* CreateTextureResource(DXGI_FORMAT dxFormat,
+	ID3D12Resource* CreateTextureResource(DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat,
 		UINT uWidth, UINT uHeight, UINT uRowPitch, VOID* pInitData);
-	void CreateTextureSRV(ID3D12Resource* pTexture);
-	void CreateTextureUAV(ID3D12Resource* pTexture);
+	void CreateTextureSRV(DX12_ComputeTexture* pTexture);
+	void CreateTextureUAV(DX12_ComputeTexture* pTexture);
 	void CreateStagingTexture(ID3D12Resource* pTexture);
 
 	unsigned char* LoadBitmapFileRGBA(TCHAR *filename, BITMAPINFOHEADER *bitmapInfoHeader);
