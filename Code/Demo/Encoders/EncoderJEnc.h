@@ -51,4 +51,15 @@ public:
 	virtual HRESULT Init(D3D12Wrap* d3d);
 
 	virtual char* Name() { return "JEnc"; }
+
+private:
+	D3D12Wrap * mD3D12Wrap;
+	ID3D12Resource * copyTexture = nullptr;
+	ID3D12Resource * currentTextureResourcePtr = nullptr;
+	ID3D12DescriptorHeap* descHeap = nullptr;
+
+private:
+
+	HRESULT CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, ID3D12Resource * textureResource);
+	HRESULT CopyTexture(ID3D12Resource * textureResource);
 };

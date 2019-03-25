@@ -92,18 +92,81 @@ DX12_EncoderJEnc::~DX12_EncoderJEnc()
 EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, unsigned char* Data, CHROMA_SUBSAMPLE subsampleType, float outputScale, int jpegQuality)
 {
 	EncodeResult result;
-	//DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(textureResource, outputScale);
+	//DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(device, textureResource, outputScale);
+	
+	/*
+	// Copy the intermediate render target to the cross-adapter shared resource.
+	// Transition barriers are not required since there are fences guarding against
+	// concurrent read/write access to the shared heap.
+	if (m_crossAdapterTextureSupport)
+	{
+		// If cross-adapter row-major textures are supported by the adapter,
+		// simply copy the texture into the cross-adapter texture.
+		m_copyCommandList->CopyResource(m_crossAdapterResources[adapter][m_frameIndex].Get(), m_renderTargets[adapter][m_frameIndex].Get());
+	}
+	else
+	{
+		// If cross-adapter row-major textures are not supported by the adapter,
+		// the texture will be copied over as a buffer so that the texture row
+		// pitch can be explicitly managed.
 
-	JEncRGBDataDesc jD3D;
+
+		// Copy the intermediate render target into the shared buffer using the
+		// memory layout prescribed by the render target.
+		D3D12_RESOURCE_DESC renderTargetDesc = m_renderTargets[adapter][m_frameIndex]->GetDesc();
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT renderTargetLayout;
+
+
+		m_devices[adapter]->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &renderTargetLayout, nullptr, nullptr, nullptr);
+
+
+		CD3DX12_TEXTURE_COPY_LOCATION dest(m_crossAdapterResources[adapter][m_frameIndex].Get(), renderTargetLayout);
+		CD3DX12_TEXTURE_COPY_LOCATION src(m_renderTargets[adapter][m_frameIndex].Get(), 0);
+		CD3DX12_BOX box(0, 0, m_width, m_height);
+
+
+		m_copyCommandList->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
+	}
+	*/
+
+	/*JEncRGBDataDesc jD3D;
 	jD3D.Data = Data;
 	jD3D.Width = textureResource->GetDesc().Width;
 	jD3D.Height = textureResource->GetDesc().Height;
-	jD3D.RowPitch = textureResource->GetDesc().Width * 4;
+	jD3D.RowPitch = textureResource->GetDesc().Width * 4;*/
 
-	/*DX12_JEncD3DDataDesc jD3D;
-	jD3D.Width = ps.Width;
-	jD3D.Height = ps.Height;
-	jD3D.DescriptorHeap = ps.Heap;*/
+	DX12_JEncD3DDataDesc jD3D;
+	jD3D.Width = textureResource->GetDesc().Width;
+	jD3D.Height = textureResource->GetDesc().Height;
+
+	if (currentTextureResourcePtr != textureResource)
+	{
+		currentTextureResourcePtr = textureResource;
+
+		SAFE_RELEASE(copyTexture);
+		SAFE_RELEASE(descHeap);
+
+		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+		dhd.NumDescriptors = 3;
+		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (FAILED(mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&descHeap))))
+			return result;
+		descHeap->SetName((LPCWSTR)("Descriptor heap in EncoderJEnc"));
+
+		jD3D.ptrToCB_DCT_Matrix = descHeap->GetCPUDescriptorHandleForHeapStart().ptr;
+		UINT srvDescSize = mD3D12Wrap->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		jD3D.ptrToDescHeapImage = descHeap->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
+		cpuDescHandle.ptr = jD3D.ptrToDescHeapImage;
+		if (FAILED(CreateTextureResource(cpuDescHandle, textureResource)))
+			return result;
+	}
+	jD3D.DescriptorHeap = descHeap;
+
+	if (FAILED(CopyTexture(textureResource)))
+		return result;
 
 	VerifyDestinationBuffer(jD3D.Width, jD3D.Height);
 
@@ -126,6 +189,7 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 
 HRESULT DX12_EncoderJEnc::Init(D3D12Wrap * d3d)
 {
+	mD3D12Wrap = d3d;
 	jEncoder444 = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_4_4, d3d);
 	jEncoder422 = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_2_2, d3d);
 	jEncoder420 = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_2_0, d3d);
@@ -134,4 +198,81 @@ HRESULT DX12_EncoderJEnc::Init(D3D12Wrap * d3d)
 		return S_OK;
 
 	return E_FAIL;
+}
+
+HRESULT DX12_EncoderJEnc::CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, ID3D12Resource * textureResource)
+{
+	D3D12_RESOURCE_DESC textureDesc = {};
+	textureDesc.MipLevels = 1;
+	textureDesc.Format = textureResource->GetDesc().Format;
+	textureDesc.Width = textureResource->GetDesc().Width;
+	textureDesc.Height = textureResource->GetDesc().Height;
+	textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	textureDesc.DepthOrArraySize = 1;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	textureDesc.Alignment = 0;
+	textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	if (FAILED(mD3D12Wrap->GetDevice()->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&textureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&copyTexture))))
+	{
+		return E_FAIL;
+	}
+
+	// Describe and create an SRV for the texture
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	mD3D12Wrap->GetDevice()->CreateShaderResourceView(copyTexture, &srvDesc, cpuDescHandle);
+
+	return S_OK;
+}
+
+HRESULT DX12_EncoderJEnc::CopyTexture(ID3D12Resource * textureResource)
+{
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = copyTexture;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	//Get all the necessary D3D12 object pointers
+	ID3D12CommandAllocator * pCmdAllo = mD3D12Wrap->GetDirectAllocator();
+	ID3D12GraphicsCommandList * pCompCmdList = mD3D12Wrap->GetDirectCmdList();
+	ID3D12CommandQueue * pCompCmdQ = mD3D12Wrap->GetDirectQueue();
+
+	pCmdAllo->Reset();
+	pCompCmdList->Reset(pCmdAllo, nullptr);
+
+	//Fill the cmd q with commands
+	pCompCmdList->CopyResource(copyTexture, textureResource);
+	pCompCmdList->ResourceBarrier(1, &barrier);
+
+	//Close the q and execute it
+	pCompCmdList->Close();
+	ID3D12CommandList* ppCommandLists[] = { pCompCmdList };
+	pCompCmdQ->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
+
+	mD3D12Wrap->WaitForGPUCompletion(pCompCmdQ, mD3D12Wrap->GetFence(1));
+
+	return S_OK;
 }
