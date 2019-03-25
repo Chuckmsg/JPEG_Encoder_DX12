@@ -1177,31 +1177,6 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
 
 	mD3D12Wrap->WaitForGPUCompletion(mDirectQueue, mD3D12Wrap->GetTestFence());
-	
-	/*ID3D11ShaderResourceView* aRViews[] =
-	{
-		mCB_DCT_Matrix->GetResourceView(),
-		mCB_DCT_Matrix_Transpose->GetResourceView(),
-		pSRV ? pSRV : mCT_RGBA ? mCT_RGBA->GetResourceView() : NULL
-	};
-
-	mD3DDeviceContext->CSSetShaderResources(0, 3, aRViews);
-
-	ID3D11SamplerState* samplers[] = { mCB_SamplerState_PointClamp };
-	mD3DDeviceContext->CSSetSamplers(0, 1, samplers);
-
-	Dispatch();
-
-	samplers[0] = NULL;
-	mD3DDeviceContext->CSSetSamplers(0, 1, samplers);
-
-	mD3DDeviceContext->CSSetShader(NULL, NULL, 0);
-
-	ID3D11UnorderedAccessView* ppUAViewNULL[8] = { NULL };
-	mD3DDeviceContext->CSSetUnorderedAccessViews(0, 8, ppUAViewNULL, NULL);
-
-	ID3D11ShaderResourceView* ppSRVNULL[5] = { NULL };
-	mD3DDeviceContext->CSSetShaderResources(0, 5, ppSRVNULL);*/
 }
 
 void DX12_JpegEncoderGPU::Dispatch()
@@ -1243,9 +1218,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 
 	// Dispatch Y component
 	mDirectList->SetPipelineState(mPSO_Y_Component);
-	//mShader_Y_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
-	//mShader_Y_Component->Unset();
 
 	/*ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
 		mCB_CbCr_Quantization_Table->GetHeap(),
@@ -1260,15 +1233,11 @@ void DX12_JpegEncoderGPU::Dispatch()
 
 	// Dispatch Cb component
 	mDirectList->SetPipelineState(mPSO_Cb_Component);
-	//mShader_Cb_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
-	//mShader_Cb_Component->Unset();
 
 	// Dispatch Cr component
 	mDirectList->SetPipelineState(mPSO_Cr_Component);
-	//mShader_Cr_Component->Set();
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
-	//mShader_Cr_Component->Unset();
 
 	mDirectList->ResourceBarrier(1, &barrier);
 	mDirectList->Close();

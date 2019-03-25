@@ -305,15 +305,6 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 	{
 		if (bCreateStaging)
 		{
-			//Description for descriptor heap
-			/*D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-			dhd.NumDescriptors = 1;
-			dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&buffer->m_stagingHeap))))
-				return nullptr;
-			buffer->m_stagingHeap->SetName((LPCWSTR)(debugName));*/
-
 			buffer->m_staging = CreateStagingBuffer(buffer, uElementSize, uCount);
 		}
 	}
@@ -736,18 +727,17 @@ ID3D12Resource * DX12_ComputeWrap::CreateStagingBuffer(DX12_ComputeBuffer* pBuff
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	D3D12_HEAP_PROPERTIES heapProperties = {};
-	heapProperties.Type = D3D12_HEAP_TYPE_READBACK; //D3D12_HEAP_TYPE_DEFAULT
+	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
 	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	heapProperties.CreationNodeMask = 1;
 	heapProperties.VisibleNodeMask = 1;
 
-	//desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	HRESULT hr = m_device->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,//D3D12_RESOURCE_STATE_GENERIC_READ //D3D12_RESOURCE_STATE_COPY_DEST
+		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
 		IID_PPV_ARGS(&textureResource)
 	);
@@ -757,19 +747,6 @@ ID3D12Resource * DX12_ComputeWrap::CreateStagingBuffer(DX12_ComputeBuffer* pBuff
 	D3D12_RANGE range = { 0, 0 };
 	// Nullptr range because it might be read (?) Confirm this
 	textureResource->Map(0, nullptr, reinterpret_cast<void**>(&pEntropyData));*/
-	
-	/*D3D12_SHADER_RESOURCE_VIEW_DESC desc2;
-	ZeroMemory(&desc2, sizeof(desc2));
-	desc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	desc2.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	desc2.Buffer.FirstElement = 0;
-
-	// else if structured...
-	desc2.Format = DXGI_FORMAT_UNKNOWN;
-	desc2.Buffer.NumElements = uCount;
-	desc2.Buffer.StructureByteStride = uElementSize;
-
-	m_device->CreateShaderResourceView(textureResource, &desc2, pBuffer->m_stagingHeap->GetCPUDescriptorHandleForHeapStart());*/
 
 	return textureResource;
 }
