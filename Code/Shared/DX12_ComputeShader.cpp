@@ -697,7 +697,107 @@ void DX12_ComputeWrap::CreateBufferUAV(DX12_ComputeBuffer * pBuffer, UINT uEleme
 // Not yet implemented
 ID3D12Resource * DX12_ComputeWrap::CreateStagingBuffer(UINT uSize)
 {
-	return nullptr;
+	ID3D12Resource * pOutputBuffer = NULL;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC stagingDesc = {};
+	stagingDesc.MipLevels = 1;
+	stagingDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	stagingDesc.Width = uSize;
+	stagingDesc.Height = 1;
+	stagingDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	stagingDesc.DepthOrArraySize = 1;
+	stagingDesc.SampleDesc.Count = 1;
+	stagingDesc.SampleDesc.Quality = 0;
+	stagingDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	stagingDesc.Alignment = 0;
+	stagingDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	m_device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&stagingDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&pOutputBuffer)
+	);
+
+	ID3D12Resource * pReadbackBuffer = NULL;
+
+	D3D12_HEAP_PROPERTIES readbackHeapProperties = {};
+	readbackHeapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+	readbackHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	readbackHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	readbackHeapProperties.CreationNodeMask = 1;
+	readbackHeapProperties.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC readbackBufferDesc = {};
+	readbackBufferDesc.MipLevels = 1;
+	readbackBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	readbackBufferDesc.Width = uSize;
+	readbackBufferDesc.Height = 1;
+	readbackBufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	readbackBufferDesc.DepthOrArraySize = 1;
+	readbackBufferDesc.SampleDesc.Count = 1;
+	readbackBufferDesc.SampleDesc.Quality = 0;
+	readbackBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	readbackBufferDesc.Alignment = 0;
+	readbackBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	m_device->CreateCommittedResource(
+		&readbackHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&readbackBufferDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&pReadbackBuffer)
+	);
+
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = pOutputBuffer;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	if (FAILED(m_cmdAllocator->Reset()))
+		return nullptr;
+	if (FAILED(m_commandList->Reset(m_cmdAllocator, nullptr)))
+		return nullptr;
+
+	m_commandList->ResourceBarrier(1, &barrier);
+	m_commandList->CopyResource(pReadbackBuffer, pOutputBuffer);
+
+	// The code below assumes that the GPU wrote INTs to the buffer.
+	D3D12_RANGE readbackBufferRange{ 0, uSize };
+	unsigned int pReadbackBufferData{};
+
+	if (FAILED(pReadbackBuffer->Map(
+		0,
+		&readbackBufferRange,
+		reinterpret_cast<void**>(&pReadbackBufferData))))
+	{
+		return nullptr;
+	}
+
+	// Code goes here to access the data via pReadbackBufferData
+
+
+
+	D3D12_RANGE emptyRange{ 0, 0 };
+	pReadbackBuffer->Unmap(
+		0,
+		&emptyRange
+	);
+
+	return pOutputBuffer;
 }
 
 ID3D12Resource * DX12_ComputeWrap::CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData)
