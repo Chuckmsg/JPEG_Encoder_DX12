@@ -528,6 +528,11 @@ HRESULT DX12_JpegEncoderGPU::createDescriptorHeapForSRVs()
 	UINT srvDescSize = mD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	ptrToDescHeapImage = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);
 
+	return S_OK;
+}
+
+HRESULT DX12_JpegEncoderGPU::createDescriptorHeapForSRVs2()
+{
 	//Description heap for all SRVs
 	D3D12_DESCRIPTOR_HEAP_DESC descHeap1 = {};
 	descHeap1.NumDescriptors = 2;
@@ -538,7 +543,7 @@ HRESULT DX12_JpegEncoderGPU::createDescriptorHeapForSRVs()
 		return E_FAIL;
 	}
 	Y_ptrToQuantizationTable = mDescHeapSRVsY->GetCPUDescriptorHandleForHeapStart().ptr;
-	srvDescSize = mD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	UINT srvDescSize = mD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	Y_ptrToHuff = mDescHeapSRVsY->GetCPUDescriptorHandleForHeapStart().ptr + srvDescSize;
 
 	//Description heap for all SRVs
@@ -915,6 +920,7 @@ void DX12_JpegEncoderGPU::shutdown()
 DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 {
 	mD3DDevice = d3dWrap->GetDevice();
+	mD3D12Wrap = d3dWrap;
 
 	_tcscpy_s(mComputeShaderFile, _T("../Shaders/Jpeg_CS.hlsl"));
 
@@ -1005,15 +1011,15 @@ void DX12_JpegEncoderGPU::ReleaseQuantizationBuffers()
 	SAFE_DELETE(mCB_CbCr_Quantization_Table);
 
 	// Do not know if this should be here
-	SAFE_RELEASE(mDescHeapSRVs);
+	//SAFE_RELEASE(mDescHeapSRVs);
 	SAFE_RELEASE(mDescHeapSRVsY);
 	SAFE_RELEASE(mDescHeapSRVsCbCr);
 
-	HWND wHnd = GetActiveWindow();
-	assert(wHnd);
-	HRESULT hr = createDescriptorHeapForSRVs();
+	HRESULT hr = createDescriptorHeapForSRVs2();
 	if (FAILED(hr))
 	{
+		HWND wHnd = GetActiveWindow();
+		assert(wHnd);
 		PostMessageBoxOnError(hr, L"Failed to create descriptor heaps for the SRVs: ", L"Fatal error", MB_ICONERROR, wHnd);
 		exit(-1);
 	}
@@ -1082,6 +1088,14 @@ void DX12_JpegEncoderGPU::WriteImageData(JEncRGBDataDesc rgbDataDesc)
 {
 	if (!mCT_RGBA)
 	{
+		HWND wHnd = GetActiveWindow();
+		assert(wHnd);
+		HRESULT hr = createDescriptorHeapForSRVs();
+		if (FAILED(hr))
+		{
+			PostMessageBoxOnError(hr, L"Failed to create descriptor heaps for the SRVs [WriteImageData]: ", L"Fatal error", MB_ICONERROR, wHnd);
+			exit(-1);
+		}
 		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart();
 		cpuDescHandle.ptr = ptrToDescHeapImage;
 		mCT_RGBA = mComputeSys->CreateTexture(cpuDescHandle, DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -1105,7 +1119,7 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 {
 	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
 	{
-		SAFE_RELEASE(mDescHeapSRVs);
+		//SAFE_RELEASE(mDescHeapSRVs);
 		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
 		ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
 		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
@@ -1162,6 +1176,8 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	ID3D12CommandList* listsToExecute[] = { mDirectList };
 	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
 
+	mD3D12Wrap->WaitForGPUCompletion(mDirectQueue, mD3D12Wrap->GetTestFence());
+	
 	/*ID3D11ShaderResourceView* aRViews[] =
 	{
 		mCB_DCT_Matrix->GetResourceView(),
@@ -1199,10 +1215,6 @@ void DX12_JpegEncoderGPU::Dispatch()
 			[3] = UAV
 			[4] = CBV
 	*/
-
-	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
-	mDirectList->SetDescriptorHeaps(1, uavHeap);
-	mDirectList->SetComputeRootDescriptorTable(3, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
 	
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
 	D3D12_RESOURCE_BARRIER barrier{};
@@ -1213,6 +1225,10 @@ void DX12_JpegEncoderGPU::Dispatch()
 		D3D12_RESOURCE_STATES(0), //UAV does not need transition states
 		D3D12_RESOURCE_STATES(0)
 	);
+
+	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
+	mDirectList->SetDescriptorHeaps(1, uavHeap);
+	mDirectList->SetComputeRootDescriptorTable(3, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
 	
 	/*ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
 		mCB_Y_Quantization_Table->GetHeap(),

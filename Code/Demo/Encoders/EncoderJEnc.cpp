@@ -129,13 +129,13 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 	}
 	*/
 
-	/*JEncRGBDataDesc jD3D;
+	JEncRGBDataDesc jD3D;
 	jD3D.Data = Data;
 	jD3D.Width = textureResource->GetDesc().Width;
 	jD3D.Height = textureResource->GetDesc().Height;
-	jD3D.RowPitch = textureResource->GetDesc().Width * 4;*/
+	jD3D.RowPitch = textureResource->GetDesc().Width * 4;
 
-	DX12_JEncD3DDataDesc jD3D;
+	/*DX12_JEncD3DDataDesc jD3D;
 	jD3D.Width = textureResource->GetDesc().Width;
 	jD3D.Height = textureResource->GetDesc().Height;
 
@@ -166,7 +166,7 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 	jD3D.DescriptorHeap = descHeap;
 
 	if (FAILED(CopyTexture(textureResource)))
-		return result;
+		return result;*/
 
 	VerifyDestinationBuffer(jD3D.Width, jD3D.Height);
 

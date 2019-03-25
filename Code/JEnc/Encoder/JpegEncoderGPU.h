@@ -130,6 +130,7 @@ protected:
 
 	//D3D
 	ID3D12Device*				mD3DDevice = nullptr;
+	D3D12Wrap*					mD3D12Wrap;
 
 	// Pipeline State object
 	ID3D12PipelineState* mPSO_Y_Component = nullptr;
@@ -206,6 +207,7 @@ private:
 
 	// New functions
 	HRESULT createDescriptorHeapForSRVs();
+	HRESULT createDescriptorHeapForSRVs2();
 	HRESULT createRootSignature();
 	HRESULT createAllocatorQueueList();
 	void UpdateQuantizationTable(DX12_ComputeBuffer* quantizationTable, float* quantizationTableFloat);

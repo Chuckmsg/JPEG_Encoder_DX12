@@ -48,7 +48,26 @@ public:
 	}
 	void CopyToStaging()
 	{
+		/*D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = m_resource;
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;*/
+
+		m_cmdAllocator->Reset();
+		m_commandList->Reset(m_cmdAllocator, nullptr);
+		
+		//m_commandList->ResourceBarrier(1, &barrier);
 		m_commandList->CopyResource(m_staging, m_resource);
+
+		//Close the q and execute it
+		m_commandList->Close();
+		ID3D12CommandList* ppCommandLists[] = { m_commandList };
+		m_computeQueue->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
+
+		m_D3D12Wrap->WaitForGPUCompletion(m_computeQueue, m_D3D12Wrap->GetTestFence());
 	}
 
 	template<class T>
@@ -75,6 +94,8 @@ public:
 		m_descHeap = NULL;
 		m_SRV = NULL;
 		m_UAV = NULL;
+		m_stagingHeap = NULL;
+		m_stagingUpload = NULL;
 	}
 
 	~DX12_ComputeBuffer()
@@ -85,8 +106,9 @@ public:
 	{
 		SAFE_RELEASE(m_resource);
 		SAFE_RELEASE(m_staging);
-		SAFE_RELEASE(m_commandList);
+		//SAFE_RELEASE(m_commandList);
 		SAFE_RELEASE(m_descHeap);
+		SAFE_RELEASE(m_stagingHeap);
 	}
 
 	ID3D12DescriptorHeap* GetHeap()
@@ -94,17 +116,28 @@ public:
 		return m_descHeap;
 	}
 
+	ID3D12DescriptorHeap* GetStagingHeap()
+	{
+		return m_stagingHeap;
+	}
 private:
 	DX12_ComputeBuffer(const DX12_ComputeBuffer & cb) {}
 
 	ID3D12Resource*				m_resource;
 	ID3D12Resource*				m_staging;
+	ID3D12Resource*				m_stagingUpload;
 
 	ID3D12Resource*				m_SRV;
 	ID3D12Resource*				m_UAV;
 
 	ID3D12GraphicsCommandList*	m_commandList;
+	ID3D12CommandAllocator*		m_cmdAllocator = NULL;
+	ID3D12CommandQueue*			m_computeQueue = NULL;
+	D3D12Wrap *					m_D3D12Wrap = NULL;
+
 	ID3D12DescriptorHeap*		m_descHeap;
+
+	ID3D12DescriptorHeap*		m_stagingHeap;
 
 	friend class DX12_ComputeWrap;
 };
@@ -262,7 +295,7 @@ private:
 	ID3D12Resource* CreateRawBuffer(UINT uSize, VOID* pInitData);
 	void CreateBufferSRV(DX12_ComputeBuffer* pBuffer, D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, UINT uElementSize, UINT uCount);
 	void CreateBufferUAV(/*ID3D12Resource* */DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
-	ID3D12Resource* CreateStagingBuffer(UINT uSize);
+	ID3D12Resource* CreateStagingBuffer(DX12_ComputeBuffer* pBuffer, UINT uElementSize, UINT uCount);
 
 	//texture functions
 	ID3D12Resource* CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_ComputeTexture* texture, DXGI_FORMAT dxFormat,

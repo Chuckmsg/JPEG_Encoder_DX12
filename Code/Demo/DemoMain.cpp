@@ -95,8 +95,8 @@ HRESULT Init(HWND hwnd, int width, int height)
 			gTexture = gComputeWrap->CreateTextureFromBitmap(_T("../Images/ssc_800.bmp"), "TEXTURE", DX12);
 
 			//Create the jpeg encoder here
-			//jencEncoder = myNew DX12_EncoderJEnc(&gSurfacePrepDX12);
-			//jencEncoder->Init(&gD3D12);
+			jencEncoder = myNew DX12_EncoderJEnc(&gSurfacePrepDX12);
+			jencEncoder->Init(&gD3D12);
 			
 			//jencPtr = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_4_4, &gD3D12);
 
@@ -556,58 +556,58 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 	DXGI_PRESENT_PARAMETERS pp = {};
 	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
 	
-	//// Encode
-	//EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+	// Encode
+	EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 
-	//static int movieNum = 1;
-	//if (GetAsyncKeyState(VK_F2))
-	//{
-	//	if (!gMJPEG.IsRecording())
-	//	{
-	//		char filename[100];
-	//		sprintf_s(filename, sizeof(filename), "%s%d.avi", movieNum < 10 ? "00" : movieNum < 100 ? "0" : "", movieNum);
+	static int movieNum = 1;
+	if (GetAsyncKeyState(VK_F2))
+	{
+		if (!gMJPEG.IsRecording())
+		{
+			char filename[100];
+			sprintf_s(filename, sizeof(filename), "%s%d.avi", movieNum < 10 ? "00" : movieNum < 100 ? "0" : "", movieNum);
 
-	//		movieNum++;
-	//		gLockedFrameRate = 24;
+			movieNum++;
+			gLockedFrameRate = 24;
 
-	//		gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
-	//	}
-	//}
+			gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
+		}
+	}
 
-	//if (gMJPEG.IsRecording())
-	//{
-	//	gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
-	//}
+	if (gMJPEG.IsRecording())
+	{
+		gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
+	}
 
-	//if (GetAsyncKeyState(VK_F3))
-	//{
-	//	if (gMJPEG.IsRecording())
-	//	{
-	//		gMJPEG.StopRecording();
+	if (GetAsyncKeyState(VK_F3))
+	{
+		if (gMJPEG.IsRecording())
+		{
+			gMJPEG.StopRecording();
 
-	//		gLockedFrameRate = 0;
-	//	}
-	//}
+			gLockedFrameRate = 0;
+		}
+	}
 
-	////////////////////////////////////////////////////////
-	//static int imgNum = 1;
-	//static bool bthPressed = false;
-	//if (!bthPressed && GetAsyncKeyState(VK_F1))
-	//{
-	//	char filename[100];
-	//	sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
-	//	FILE* f = NULL;
-	//	fopen_s(&f, filename, "wb");
-	//	fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
-	//	fclose(f);
+	//////////////////////////////////////////////////////
+	static int imgNum = 1;
+	static bool bthPressed = false;
+	if (!bthPressed && GetAsyncKeyState(VK_F1))
+	{
+		char filename[100];
+		sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
+		FILE* f = NULL;
+		fopen_s(&f, filename, "wb");
+		fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
+		fclose(f);
 
-	//	imgNum++;
-	//	bthPressed = true;
-	//}
-	//else if (!GetAsyncKeyState(VK_F1))
-	//{
-	//	bthPressed = false;
-	//}
+		imgNum++;
+		bthPressed = true;
+	}
+	else if (!GetAsyncKeyState(VK_F1))
+	{
+		bthPressed = false;
+	}
 	d3d12Profiler->CalculateAllDurations();
 	d3d12Profiler->PrintAllToDebugOutput();
 
