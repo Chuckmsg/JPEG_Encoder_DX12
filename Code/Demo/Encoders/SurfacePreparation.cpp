@@ -540,7 +540,7 @@ void SurfacePreperationDX12::Cleanup()
 	SAFE_RELEASE(m_pso);
 }
 
-DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Resource * texture, float outputScale)
+DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * device, ID3D12Resource * texture, float outputScale)
 {
 	DX12_PreparedSurface result;
 	
@@ -585,11 +585,11 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Resource * te
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_heap));
+	device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_heap));
 	m_heap->SetName(L"Testing resource HEAP for JPeg Encoder");
-	InitSRV(texture, texture->GetDesc().Format, m_heap);
-
-	m_heap = m_D3D12Wrap->GetSRVHeap();
+	InitSRV(device, texture, texture->GetDesc().Format, m_heap);
+	
+	//m_heap = m_D3D12Wrap->GetSRVHeap();
 	result.Width = texture->GetDesc().Width;
 	result.Height = texture->GetDesc().Height;
 	result.Heap = m_heap;
@@ -825,14 +825,15 @@ HRESULT SurfacePreperationDX12::_createPSO()
 	return hr;
 }
 
-HRESULT SurfacePreperationDX12::InitSRV(ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap *& outDescriptorHeap)
+HRESULT SurfacePreperationDX12::InitSRV(ID3D12Device * device, ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap *& outDescriptorHeap)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC desc;
+	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	desc.Format = format;
 	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	desc.Texture2D.MostDetailedMip = 0;
 	desc.Texture2D.MipLevels = 1;
 
-	m_device->CreateShaderResourceView(shaderResource, &desc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateShaderResourceView(shaderResource, &desc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	return S_OK;
 }

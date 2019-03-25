@@ -67,6 +67,8 @@ struct JEncD3DDataDesc
 struct DX12_JEncD3DDataDesc
 {
 	struct ID3D12DescriptorHeap* DescriptorHeap;
+	unsigned __int64 ptrToCB_DCT_Matrix;
+	unsigned __int64 ptrToDescHeapImage;
 	unsigned int Width;
 	unsigned int Height;
 	unsigned char* TargetMemory;

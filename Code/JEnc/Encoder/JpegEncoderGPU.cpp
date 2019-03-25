@@ -1103,6 +1103,14 @@ void DX12_JpegEncoderGPU::WriteImageData(JEncRGBDataDesc rgbDataDesc)
 
 void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr:2 Start point
 {
+	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
+	{
+		SAFE_RELEASE(mDescHeapSRVs);
+		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
+		ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
+		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
+	}
+
 	if (mDoCreateBuffers)
 	{
 		CreateBuffers();

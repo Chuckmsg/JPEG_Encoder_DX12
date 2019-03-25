@@ -94,7 +94,7 @@ public:
 
 	void Cleanup();
 
-	DX12_PreparedSurface GetValidSurface(ID3D12Resource* texture, float outputScale);
+	DX12_PreparedSurface GetValidSurface(ID3D12Device * device, ID3D12Resource* texture, float outputScale);
 
 private:
 	ID3D12Device * m_device			= NULL;
@@ -112,5 +112,5 @@ private:
 	HRESULT _compilePixelShader();
 	HRESULT _createPSO();
 
-	HRESULT InitSRV(ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
+	HRESULT InitSRV(ID3D12Device * device, ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
 };

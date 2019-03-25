@@ -280,14 +280,17 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
 	buffer->m_commandList = m_commandList;
-	//Description for descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.NumDescriptors = 1;
-	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&buffer->m_descHeap))))
-		return nullptr;
-	buffer->m_descHeap->SetName((LPCWSTR)(debugName));
+	if (bUAV)
+	{
+		//Description for descriptor heap
+		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+		dhd.NumDescriptors = 1;
+		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&buffer->m_descHeap))))
+			return nullptr;
+		buffer->m_descHeap->SetName((LPCWSTR)(debugName));
+	}
 
 	if (DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER == uType)
 		buffer->m_resource = CreateStructuredBuffer(buffer, cpuDescHandle, uElementSize, uCount, bSRV, bUAV, pInitData);
@@ -326,13 +329,13 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(D3D12_CPU_DESCRIPTOR_HANDL
 	DX12_ComputeTexture* texture = new DX12_ComputeTexture();
 	
 	//Description for descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	/*D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.NumDescriptors = 1;
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&texture->m_descHeap))))
 		return nullptr;
-	texture->m_descHeap->SetName((LPCWSTR)(debugName));
+	texture->m_descHeap->SetName((LPCWSTR)(debugName));*/
 
 	texture->m_resource = CreateTextureResource(cpuDescHandle, texture, dxFormat, uWidth, uHeight, uRowPitch, pInitData);
 
@@ -384,12 +387,12 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTextureFromBitmap(D3D12_CPU_DESCRI
 		if (texture->m_resource)
 		{
 			//Description for descriptor heap
-			D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+			/*D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 			dhd.NumDescriptors = 1;
 			dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 			dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			if (FAILED(m_device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&texture->m_descHeap))))
-				return nullptr;
+				return nullptr;*/
 			CreateTextureSRV(cpuDescHandle, texture);
 
 			if (debugName)
