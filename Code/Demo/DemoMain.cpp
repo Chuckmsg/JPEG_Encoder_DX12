@@ -13,6 +13,9 @@
 #include "Encoders\EncoderJEnc.h"
 #include "../Shared/D3DProfiler.h"
 
+#include <thread>
+#include<mutex>
+
 DX12_EncoderJEnc* jencEncoder = nullptr;
 SurfacePreperationDX12 gSurfacePrepDX12;
 
@@ -45,7 +48,23 @@ D3D12Wrap				gD3D12;
 ID3D12PipelineState * gBackBufferPipelineState = NULL;
 float * cbData			= NULL;
 D3DProfiler* d3d12Profiler = NULL;
-int ComputeTimeIndex = 0;
+
+bool running = true;
+bool present = false;
+std::mutex presentMutex;
+
+std::thread worker;
+std::mutex mutex;
+
+enum ProfilingStages
+{
+	DX11_FrameTime = 0,
+	DX11_DispatchUAV= 1,
+	DX11_Encoding = 2,
+
+	DX12_DispatchUAV = 0
+};
+#define ENUM_TO_STR(ENUM) std::string(#ENUM)
 
 //--------------------------------------------------------------------------------------
 // Forward declarations
@@ -60,6 +79,8 @@ HRESULT				InitDX12(HWND hwnd, unsigned int width, unsigned int height);
 HRESULT				RenderDX12(float deltaTime, HWND hwnd);
 void						PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList);
 void						PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList);
+void						WorkerThread();
+
 HRESULT				UpdateDX12(float deltaTime, HWND hwnd);
 HRESULT				CreateBackBufferPSO();
 //--------------------------------------------------------------------------------------
@@ -106,7 +127,7 @@ HRESULT Init(HWND hwnd, int width, int height)
 			d3d12Profiler = new D3DProfiler(gD3D12.GetDevice(), gD3D12.GetComputeCmdList(), gD3D12.GetComputeQueue());
 			d3d12Profiler->SetName("DX12_Compute");
 			d3d12Profiler->Init(D3DProfiler::DX12);
-			ComputeTimeIndex = d3d12Profiler->CreateTimestamp("ComputeTime");
+			d3d12Profiler->CreateTimestamp(ENUM_TO_STR(DX12_DispatchUAV));
 
 			return S_OK;
 		}
@@ -147,7 +168,10 @@ HRESULT Init(HWND hwnd, int width, int height)
 		d3d11Profiler = new D3DProfiler(gD3D.GetDevice(), gD3D.GetDeviceContext());
 		d3d11Profiler->SetName("DirectX11");
 		d3d11Profiler->Init(D3DProfiler::DX11);
-		FrameTimeIndex = d3d11Profiler->CreateTimestamp("FrameTime");
+
+		d3d11Profiler->CreateTimestamp(ENUM_TO_STR(DX11_FrameTime));
+		d3d11Profiler->CreateTimestamp(ENUM_TO_STR(DX11_DispatchUAV));
+		d3d11Profiler->CreateTimestamp(ENUM_TO_STR(DX11_Encoding));
 	}
 
 	return hr;
@@ -155,6 +179,13 @@ HRESULT Init(HWND hwnd, int width, int height)
 
 HRESULT Cleanup()
 {
+	if (DX12)
+	{
+		mutex.lock();
+		running = false;
+		mutex.unlock();
+		worker.join();
+	}
 
 	SAFE_RELEASE(gSamplerState);
 	SAFE_RELEASE(gConstantBuffer);
@@ -199,8 +230,8 @@ HRESULT Update(float deltaTime, HWND hwnd)
 		gD3D.GetDeviceContext()->UpdateSubresource(gConstantBuffer, 0, NULL, &timer, 0, 0);
 		d3d11Profiler->Update();
 	}
-	else
-		d3d12Profiler->Update();
+	/*else
+		d3d12Profiler->Update();*/
 
 	if(GetAsyncKeyState(VK_CONTROL) && GetAsyncKeyState(VK_ADD))
 	{
@@ -250,7 +281,7 @@ HRESULT Render(float deltaTime, HWND hwnd)
 		return RenderDX12(deltaTime, hwnd);
 
 	d3d11Profiler->StartProfiler();
-	d3d11Profiler->BeginTimestamp(FrameTimeIndex);
+	d3d11Profiler->BeginTimestamp(DX11_FrameTime);
 	//samplers for surface prep and backbuffer fill, ugly but hey :-)
 	gD3D.GetDeviceContext()->PSSetSamplers(0, 1, &gSamplerState);
 	gD3D.GetDeviceContext()->CSSetSamplers(0, 1, &gSamplerState);
@@ -264,9 +295,11 @@ HRESULT Render(float deltaTime, HWND hwnd)
 	ID3D11ShaderResourceView* srv[] = { gTexture->GetResourceView() };
 	gD3D.GetDeviceContext()->CSSetShaderResources(0, 1, srv);
 
+	d3d11Profiler->BeginTimestamp(DX11_DispatchUAV);
 	gBackbufferShader->Set();
 	gD3D.GetDeviceContext()->Dispatch(25,25,1);
 	gBackbufferShader->Unset();
+	d3d11Profiler->EndTimestamp(DX11_DispatchUAV);
 
 	cb[0] = NULL;
 	gD3D.GetDeviceContext()->CSSetConstantBuffers(0, 1, cb);
@@ -274,7 +307,9 @@ HRESULT Render(float deltaTime, HWND hwnd)
 	uav[0] = NULL;
 	gD3D.GetDeviceContext()->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 
+	d3d11Profiler->BeginTimestamp(DX11_Encoding);
 	EncodeResult res = gEncJEnc->Encode(gD3D.GetBackBuffer(), gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+	d3d11Profiler->EndTimestamp(DX11_Encoding);
 
 	static int movieNum = 1;
 	if(GetAsyncKeyState(VK_F2))
@@ -336,7 +371,7 @@ HRESULT Render(float deltaTime, HWND hwnd)
 
 	gD3D.Present();
 
-	d3d11Profiler->EndTimestamp(FrameTimeIndex);
+	d3d11Profiler->EndTimestamp(DX11_FrameTime);
 	d3d11Profiler->EndProfiler();
 
 #ifdef _DEBUG
@@ -531,85 +566,79 @@ HRESULT InitDX12(HWND hwnd, unsigned int width, unsigned int height)
 
 HRESULT RenderDX12(float deltaTime, HWND hwnd)
 {
-	//Get the necessary object pointers 
-		//Compute stuff
-	ID3D12GraphicsCommandList * pCompCmdList = gD3D12.GetComputeCmdList();
-	ID3D12CommandQueue * pCompCmdQ = gD3D12.GetComputeQueue();
+	static bool threadStarted = false;
+	if (!threadStarted)
+	{
+		worker = std::thread(WorkerThread);
+		threadStarted = true;
+	}
 
-		//Direct stuff
-	ID3D12GraphicsCommandList * pDirectCmdList = gD3D12.GetDirectCmdList();
-	ID3D12CommandQueue * pDirectCmdQ = gD3D12.GetDirectQueue();
-
-	//Populate lists with commands
-	PopulateComputeList(pCompCmdList);
-	PopulateDirectList(pDirectCmdList);
-
-	//Execute command lists // WE CAN EXECUTE THIS IN A THREAD SINCE WE ENSURE R/W ACCESS ON THE UAVs
-	ID3D12CommandList* listsToExecute1[] = { pCompCmdList };
-	pCompCmdQ->ExecuteCommandLists(1, listsToExecute1);
-	gD3D12.WaitForGPUCompletion(pCompCmdQ, gD3D12.GetFence(0));
-
-	ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
-	pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
-	gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
 	//present the back buffer
-	DXGI_PRESENT_PARAMETERS pp = {};
-	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
-	
-	// Encode
-	EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
-
-	static int movieNum = 1;
-	if (GetAsyncKeyState(VK_F2))
+	if (present)
 	{
-		if (!gMJPEG.IsRecording())
+		DXGI_PRESENT_PARAMETERS pp = {};
+		HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
+
+		//d3d12Profiler->CalculateAllDurations();
+		//d3d12Profiler->PrintAllToDebugOutput();
+
+		// Encode
+		EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+
+		static int movieNum = 1;
+		if (GetAsyncKeyState(VK_F2))
 		{
-			char filename[100];
-			sprintf_s(filename, sizeof(filename), "%s%d.avi", movieNum < 10 ? "00" : movieNum < 100 ? "0" : "", movieNum);
+			if (!gMJPEG.IsRecording())
+			{
+				char filename[100];
+				sprintf_s(filename, sizeof(filename), "%s%d.avi", movieNum < 10 ? "00" : movieNum < 100 ? "0" : "", movieNum);
 
-			movieNum++;
-			gLockedFrameRate = 24;
+				movieNum++;
+				gLockedFrameRate = 24;
 
-			gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
+				gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
+			}
 		}
-	}
 
-	if (gMJPEG.IsRecording())
-	{
-		gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
-	}
-
-	if (GetAsyncKeyState(VK_F3))
-	{
 		if (gMJPEG.IsRecording())
 		{
-			gMJPEG.StopRecording();
-
-			gLockedFrameRate = 0;
+			gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
 		}
-	}
 
-	//////////////////////////////////////////////////////
-	static int imgNum = 1;
-	static bool bthPressed = false;
-	if (!bthPressed && GetAsyncKeyState(VK_F1))
-	{
-		char filename[100];
-		sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
-		FILE* f = NULL;
-		fopen_s(&f, filename, "wb");
-		fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
-		fclose(f);
+		if (GetAsyncKeyState(VK_F3))
+		{
+			if (gMJPEG.IsRecording())
+			{
+				gMJPEG.StopRecording();
 
-		imgNum++;
-		bthPressed = true;
+				gLockedFrameRate = 0;
+			}
+		}
+		////////////////////////////////////////////////////
+		static int imgNum = 1;
+		static bool bthPressed = false;
+		if (!bthPressed && GetAsyncKeyState(VK_F1))
+		{
+			char filename[100];
+			sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
+			FILE* f = NULL;
+			fopen_s(&f, filename, "wb");
+			fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
+			fclose(f);
+
+			imgNum++;
+			bthPressed = true;
+		}
+		else if (!GetAsyncKeyState(VK_F1))
+		{
+			bthPressed = false;
+		}
+		presentMutex.lock();
+		present = false;
+		presentMutex.unlock();
 	}
-	else if (!GetAsyncKeyState(VK_F1))
-	{
-		bthPressed = false;
-	}
-	d3d12Profiler->CalculateAllDurations();
-	d3d12Profiler->PrintAllToDebugOutput();
+	
+
 
 	TCHAR title[200];
 	_stprintf_s(title, sizeof(title) / 2, _T("JPEG DirectCompute Demo | FPS: %.0f | Quality: %d | Output scale: %.2f | Subsampling: %s"),
@@ -619,7 +648,7 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		gChromaSubsampling == CHROMA_SUBSAMPLE_4_2_0 ? _T("4:2:0") : _T("Undefined"));
 	SetWindowText(hwnd, title);
 
-	return hr;
+	return S_OK;
 }
 
 void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
@@ -637,7 +666,7 @@ void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
 	pCompCmdList->Reset(pCompCmdAllo, gBackBufferPipelineState);
 
 	d3d12Profiler->StartProfiler();
-	d3d12Profiler->BeginTimestamp(ComputeTimeIndex);
+	d3d12Profiler->BeginTimestamp(DX12_DispatchUAV);
 	//Set the Root Signature
 	pCompCmdList->SetComputeRootSignature(gD3D12.GetRootSignature());
 
@@ -664,7 +693,7 @@ void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
 	pCompCmdList->Dispatch(25, 25, 1);
 	pCompCmdList->ResourceBarrier(1, &barrier);
 
-	d3d12Profiler->EndTimestamp(ComputeTimeIndex);
+	d3d12Profiler->EndTimestamp(DX12_DispatchUAV);
 	d3d12Profiler->EndProfiler();
 
 	pCompCmdList->Close();
@@ -705,6 +734,40 @@ void PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList)
 	pDirectCmdList->ResourceBarrier(1, &cpyBarrierDone);
 
 	pDirectCmdList->Close();
+}
+
+void WorkerThread()
+{
+	//Get the necessary object pointers 
+	//Compute stuff
+	static ID3D12GraphicsCommandList * pCompCmdList = gD3D12.GetComputeCmdList();
+	static ID3D12CommandQueue * pCompCmdQ = gD3D12.GetComputeQueue();
+
+	//Direct stuff
+	static ID3D12GraphicsCommandList * pDirectCmdList = gD3D12.GetDirectCmdList();
+	static ID3D12CommandQueue * pDirectCmdQ = gD3D12.GetDirectQueue();
+
+	while (running)
+	{
+		if (!present)
+		{
+			PopulateComputeList(pCompCmdList);
+			PopulateDirectList(pDirectCmdList);
+
+			ID3D12CommandList* listsToExecute1[] = { pCompCmdList };
+			pCompCmdQ->ExecuteCommandLists(1, listsToExecute1);
+			gD3D12.WaitForGPUCompletion(pCompCmdQ, gD3D12.GetFence(0));
+
+
+			ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
+			pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
+			gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
+
+			presentMutex.lock();
+			present = true;
+			presentMutex.unlock();
+		}
+	}
 }
 
 HRESULT UpdateDX12(float deltaTime, HWND hwnd)

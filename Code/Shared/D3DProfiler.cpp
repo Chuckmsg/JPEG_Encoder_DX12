@@ -244,7 +244,7 @@ void D3DProfiler::CalculateAllDurations()
 			begin = data[i * 2];
 			end = data[(i * 2) + 1];
 			m_TimestampPairs[i].duration = (double)(((float)(end - begin)) / float(m_gpuFrequency) * 1000.f);
-			m_recordings.push_back({ m_TimestampPairs[i].regionName, m_TimestampPairs[i].duration });
+			//m_recordings.push_back({ m_TimestampPairs[i].regionName, m_TimestampPairs[i].duration });
 		}
 
 		m_buffer->Unmap(0, NULL);
@@ -288,8 +288,7 @@ void D3DProfiler::FlushRecordingsToFile()
 	{
 		for (auto &pair : m_recordings)
 		{
-			ofs << pair.first << std::endl;
-			ofs << pair.second << std::endl;
+			ofs << pair.first << " " << pair.second << std::endl;
 		}
 	}
 
