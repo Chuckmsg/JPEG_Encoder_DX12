@@ -154,13 +154,6 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 		if (FAILED(mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&descHeap))))
 			return result;
 		descHeap->SetName(L"Descriptor heap in EncoderJEnc");
-
-		/*jD3D.ptrToCB_DCT_Matrix = descHeap->GetCPUDescriptorHandleForHeapStart().ptr;
-		UINT srvDescSize = mD3D12Wrap->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		jD3D.ptrToDescHeapImage = descHeap->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);*/
-
-		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		//cpuDescHandle.ptr = jD3D.ptrToDescHeapImage;
 		
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -168,7 +161,7 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = 1;
 		
-		mD3D12Wrap->GetDevice()->CreateShaderResourceView(textureResource, &srvDesc, cpuDescHandle);
+		mD3D12Wrap->GetDevice()->CreateShaderResourceView(textureResource, &srvDesc, descHeap->GetCPUDescriptorHandleForHeapStart());
 		//if (FAILED(CreateTextureResource(cpuDescHandle, textureResource)))
 			//return result;
 	}
@@ -257,14 +250,6 @@ HRESULT DX12_EncoderJEnc::CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpu
 
 HRESULT DX12_EncoderJEnc::CopyTexture(ID3D12Resource * textureResource)
 {
-	/*D3D12_RESOURCE_BARRIER barrier = {};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = copyTexture;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;*/
-
 	//Get all the necessary D3D12 object pointers
 	ID3D12CommandAllocator * pCmdAllo = mD3D12Wrap->GetDirectAllocator();
 	ID3D12GraphicsCommandList * pCompCmdList = mD3D12Wrap->GetDirectCmdList();
@@ -274,7 +259,6 @@ HRESULT DX12_EncoderJEnc::CopyTexture(ID3D12Resource * textureResource)
 	pCompCmdList->Reset(pCmdAllo, nullptr);
 
 	//Fill the cmd q with commands
-	//pCompCmdList->ResourceBarrier(1, &barrier);
 	pCompCmdList->CopyResource(copyTexture, textureResource);
 
 	//Close the q and execute it

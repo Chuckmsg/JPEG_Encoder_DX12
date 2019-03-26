@@ -525,9 +525,7 @@ HRESULT DX12_JpegEncoderGPU::createDescriptorHeapForSRVs()
 	{
 		return E_FAIL;
 	}
-	/*ptrToCB_DCT_Matrix = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr;
-	UINT srvDescSize = mD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	ptrToDescHeapImage = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);*/
+	ptrToDescHeapImage = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr;
 	return S_OK;
 }
 
@@ -1154,7 +1152,6 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
 	{
 		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
-		//ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
 		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
 	}
 
@@ -1188,13 +1185,6 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 			[4] = CBV
 			[5] = SRV, t2
 	*/
-
-	//Set the SRV and UAV descriptor heaps
-	/*ID3D12DescriptorHeap * srvHeap[] = { 
-		mCB_DCT_Matrix->GetHeap(),
-		mCB_DCT_Matrix_Transpose->GetHeap(),
-		pSRV ? pSRV : (mCT_RGBA ? mCT_RGBA->GetHeap() : NULL)
-	};*/
 	
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRV01);
 	mDirectList->SetComputeRootDescriptorTable(1, mDescHeapSRV01->GetGPUDescriptorHandleForHeapStart()); // t0 - t1
@@ -1241,11 +1231,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
 	mDirectList->SetDescriptorHeaps(1, uavHeap);
 	mDirectList->SetComputeRootDescriptorTable(3, uavHeap[0]->GetGPUDescriptorHandleForHeapStart()); // u0
-	
-	/*ID3D12DescriptorHeap * srv_Huffman_Y[] = { 
-		mCB_Y_Quantization_Table->GetHeap(),
-		mCB_Huff_Y_AC->GetHeap()
-	};*/
+
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVsY);
 	mDirectList->SetComputeRootDescriptorTable(2, mDescHeapSRVsY->GetGPUDescriptorHandleForHeapStart()); // t3 - t4
 
@@ -1258,10 +1244,6 @@ void DX12_JpegEncoderGPU::Dispatch()
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
 	mDirectList->ResourceBarrier(1, &barrier);
 
-	/*ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
-		mCB_CbCr_Quantization_Table->GetHeap(),
-		mCB_Huff_CbCr_AC->GetHeap()
-	};*/
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVsCbCr);
 	mDirectList->SetComputeRootDescriptorTable(2, mDescHeapSRVsCbCr->GetGPUDescriptorHandleForHeapStart()); // t3 - t4
 
