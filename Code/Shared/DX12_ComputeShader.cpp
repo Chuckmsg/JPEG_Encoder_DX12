@@ -306,6 +306,7 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 		if (bCreateStaging)
 		{
 			buffer->m_staging = CreateStagingBuffer(buffer, uElementSize, uCount);
+			buffer->gpuSize = uElementSize * uCount;
 		}
 	}
 

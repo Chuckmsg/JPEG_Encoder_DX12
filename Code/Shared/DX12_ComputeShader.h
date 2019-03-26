@@ -74,16 +74,22 @@ public:
 	T* Map()
 	{
 		T* p = NULL;
-
+		D3D12_RANGE readbackBufferRange{ 0, gpuSize };
 		// Nullptr range because it might be read (?) Confirm this
-		m_staging->Map(0, nullptr, reinterpret_cast<void**>(&p));
-
+		m_staging->Map(0, &readbackBufferRange, reinterpret_cast<void**>(&p));
+		for (int i = 0; i < gpuSize; i++)
+		{
+			int g = (int)p[i];
+			const char* str = std::to_string(g).c_str();
+			OutputDebugString((LPCWSTR)str);
+		}
 		return p;
 	}
 
 	void Unmap()
 	{
-		m_staging->Unmap(0, nullptr);
+		D3D12_RANGE nullRange{ 0, gpuSize };
+		m_staging->Unmap(0, &nullRange);
 	}
 
 	explicit DX12_ComputeBuffer()
@@ -138,6 +144,8 @@ private:
 	ID3D12DescriptorHeap*		m_descHeap;
 
 	ID3D12DescriptorHeap*		m_stagingHeap;
+
+	UINT gpuSize = 0;
 
 	friend class DX12_ComputeWrap;
 };
