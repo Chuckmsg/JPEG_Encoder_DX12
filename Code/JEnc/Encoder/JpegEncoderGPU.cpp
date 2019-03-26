@@ -1219,6 +1219,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 	// Dispatch Y component
 	mDirectList->SetPipelineState(mPSO_Y_Component);
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
+	mDirectList->ResourceBarrier(1, &barrier);
 
 	/*ID3D12DescriptorHeap* srv_Huffman_CbCr[] = { 
 		mCB_CbCr_Quantization_Table->GetHeap(),
@@ -1234,6 +1235,7 @@ void DX12_JpegEncoderGPU::Dispatch()
 	// Dispatch Cb component
 	mDirectList->SetPipelineState(mPSO_Cb_Component);
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
+	mDirectList->ResourceBarrier(1, &barrier);
 
 	// Dispatch Cr component
 	mDirectList->SetPipelineState(mPSO_Cr_Component);
