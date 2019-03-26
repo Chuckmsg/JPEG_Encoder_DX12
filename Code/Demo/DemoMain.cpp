@@ -28,7 +28,8 @@ MotionJpeg				gMJPEG;
 
 Encoder*				gEncJEnc			= NULL;
 
-int						gLockedFrameRate	= 0;
+int						gScreenRefreshRate = 60; //manual vsync for cpu side
+int						gLockedFrameRate	= 60;
 float					gJpegQuality		= 85;
 float					gOutputScale		= 1.0f;
 CHROMA_SUBSAMPLE		gChromaSubsampling	= CHROMA_SUBSAMPLE_4_2_0;
@@ -40,7 +41,6 @@ ID3D11Buffer*			gConstantBuffer		= NULL;
 ID3D11SamplerState*		gSamplerState		= NULL;
 
 D3DProfiler* d3d11Profiler = NULL;
-unsigned int FrameTimeIndex = 0;
 
 //DX12 Globals
 bool DX12				= false;
@@ -49,12 +49,15 @@ ID3D12PipelineState * gBackBufferPipelineState = NULL;
 float * cbData			= NULL;
 D3DProfiler* d3d12Profiler = NULL;
 
-bool running = true;
+EncodeResult gRes;
+std::mutex resultMutex;
+
 bool present = false;
 std::mutex presentMutex;
 
+bool running = true;
 std::thread worker;
-std::mutex mutex;
+std::mutex workerMutex;
 
 enum ProfilingStages
 {
@@ -181,9 +184,9 @@ HRESULT Cleanup()
 {
 	if (DX12)
 	{
-		mutex.lock();
+		workerMutex.lock();
 		running = false;
-		mutex.unlock();
+		workerMutex.unlock();
 		worker.join();
 	}
 
@@ -230,8 +233,6 @@ HRESULT Update(float deltaTime, HWND hwnd)
 		gD3D.GetDeviceContext()->UpdateSubresource(gConstantBuffer, 0, NULL, &timer, 0, 0);
 		d3d11Profiler->Update();
 	}
-	/*else
-		d3d12Profiler->Update();*/
 
 	if(GetAsyncKeyState(VK_CONTROL) && GetAsyncKeyState(VK_ADD))
 	{
@@ -337,7 +338,7 @@ HRESULT Render(float deltaTime, HWND hwnd)
 		{
 			gMJPEG.StopRecording();
 
-			gLockedFrameRate = 0;
+			gLockedFrameRate = gScreenRefreshRate;
 		}
 	}
 
@@ -518,7 +519,20 @@ HWND InitWindow( HINSTANCE hInstance, int nCmdShow, int width, int height )
 	}
 
 	ShowWindow( hwnd, nCmdShow );
+
+	//Retrieve monitors refresh rate
+	DEVMODE lpDevMode;
+	memset(&lpDevMode, 0, sizeof(DEVMODE));
+	lpDevMode.dmSize = sizeof(DEVMODE);
+	lpDevMode.dmDriverExtra = 0;
+
+	if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &lpDevMode) == 0)
+		gScreenRefreshRate = 60;
+	else
+		gScreenRefreshRate = (int)lpDevMode.dmDisplayFrequency;
 	
+	gLockedFrameRate = gScreenRefreshRate;
+
 	return hwnd;
 }
 
@@ -579,12 +593,6 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		DXGI_PRESENT_PARAMETERS pp = {};
 		HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
 
-		//d3d12Profiler->CalculateAllDurations();
-		//d3d12Profiler->PrintAllToDebugOutput();
-
-		// Encode
-		EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
-
 		static int movieNum = 1;
 		if (GetAsyncKeyState(VK_F2))
 		{
@@ -596,13 +604,17 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 				movieNum++;
 				gLockedFrameRate = 24;
 
-				gMJPEG.StartRecording(filename, res.ImageWidth, res.ImageHeight, gLockedFrameRate);
+				resultMutex.lock();
+				gMJPEG.StartRecording(filename, gRes.ImageWidth, gRes.ImageHeight, gLockedFrameRate);
+				resultMutex.unlock();
 			}
 		}
 
 		if (gMJPEG.IsRecording())
 		{
-			gMJPEG.AppendFrame(res.Bits, res.HeaderSize + res.DataSize);
+			resultMutex.lock();
+			gMJPEG.AppendFrame(gRes.Bits, gRes.HeaderSize + gRes.DataSize);
+			resultMutex.unlock();
 		}
 
 		if (GetAsyncKeyState(VK_F3))
@@ -611,7 +623,7 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 			{
 				gMJPEG.StopRecording();
 
-				gLockedFrameRate = 0;
+				gLockedFrameRate = gScreenRefreshRate;
 			}
 		}
 		////////////////////////////////////////////////////
@@ -623,7 +635,9 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 			sprintf_s(filename, sizeof(filename), "%s%d.jpg", imgNum < 10 ? "00" : imgNum < 100 ? "0" : "", imgNum);
 			FILE* f = NULL;
 			fopen_s(&f, filename, "wb");
-			fwrite((char*)res.Bits, res.HeaderSize + res.DataSize, 1, f);
+			resultMutex.lock();
+			fwrite((char*)gRes.Bits, gRes.HeaderSize + gRes.DataSize, 1, f);
+			resultMutex.unlock();
 			fclose(f);
 
 			imgNum++;
@@ -633,13 +647,12 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		{
 			bthPressed = false;
 		}
+
 		presentMutex.lock();
 		present = false;
 		presentMutex.unlock();
 	}
 	
-
-
 	TCHAR title[200];
 	_stprintf_s(title, sizeof(title) / 2, _T("JPEG DirectCompute Demo | FPS: %.0f | Quality: %d | Output scale: %.2f | Subsampling: %s"),
 		1.0f / deltaTime, (int)gJpegQuality, gOutputScale,
@@ -751,6 +764,8 @@ void WorkerThread()
 	{
 		if (!present)
 		{
+			d3d12Profiler->Update();
+
 			PopulateComputeList(pCompCmdList);
 			PopulateDirectList(pDirectCmdList);
 
@@ -762,6 +777,13 @@ void WorkerThread()
 			ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
 			pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
 			gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
+
+			resultMutex.lock();
+			gRes = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+			resultMutex.unlock();
+
+			d3d12Profiler->CalculateAllDurations();
+			d3d12Profiler->PrintAllToDebugOutput();
 
 			presentMutex.lock();
 			present = true;
