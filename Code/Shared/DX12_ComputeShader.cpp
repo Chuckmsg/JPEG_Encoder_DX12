@@ -148,7 +148,7 @@ DX12_ComputeShader * DX12_ComputeWrap::CreateComputeShader(TCHAR * shaderFile, c
 	return cs;
 }
 
-ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID * pInitData, char * debugName)
+ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID * pInitData, wchar_t * debugName)
 {
 	ID3D12Resource * pBuffer = NULL;
 
@@ -276,7 +276,7 @@ ID3D12Resource * DX12_ComputeWrap::CreateConstantBuffer(ID3D12DescriptorHeap*& d
 }
 
 DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize, UINT uCount,
-	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, char * debugName)
+	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, wchar_t * debugName)
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
 	buffer->m_commandList = m_commandList;
@@ -322,16 +322,16 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 			buffer->m_UAV->SetName(LPCWSTR(debugName));
 	}
 
-	if (bSRV)
-	{
-		UINT srvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		cpuDescHandle.ptr += srvDescSize;
-	}
+	//if (bSRV)
+	//{
+	//	UINT srvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//	cpuDescHandle.ptr += srvDescSize;
+	//}
 
 	return buffer;
 }
 
-DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData, bool bCreateStaging, char * debugName)
+DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DXGI_FORMAT dxFormat, UINT uWidth, UINT uHeight, UINT uRowPitch, VOID * pInitData, bool bCreateStaging, wchar_t * debugName)
 {
 	DX12_ComputeTexture* texture = new DX12_ComputeTexture();
 	
@@ -367,6 +367,8 @@ DX12_ComputeTexture * DX12_ComputeWrap::CreateTexture(D3D12_CPU_DESCRIPTOR_HANDL
 		if (texture->m_UAV)
 			texture->m_UAV->SetName(LPCWSTR(debugName));
 	}
+
+	texture->m_resource->SetName(debugName);
 
 	UINT srvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	cpuDescHandle.ptr += srvDescSize;
@@ -523,13 +525,8 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* bu
 		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 		barrier.Transition.pResource = pResource;
 		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		if (bUAV)
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		else if (bSRV)
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-		else
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 		if (FAILED(m_cmdAllocator->Reset()))
 			return nullptr;
@@ -537,19 +534,10 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* bu
 			return nullptr;
 
 		// Populate the command queue
-		//m_commandList->SetGraphicsRootSignature(m_rootSignature);
 		UpdateSubresources(m_commandList, pResource, intermediateResource, 0, 0, 1, &resourceData);
 		m_commandList->ResourceBarrier(1, &barrier);
 
-		if (bSRV)
-			CreateBufferSRV(buffer, cpuDescHandle, uElementSize, uCount);
-		if (bUAV)
-			CreateBufferUAV(buffer, uElementSize, uCount);
-
-		// set the descriptor heap
-		//ID3D12DescriptorHeap* descriptorHeaps[] = { buffer->GetHeap() };
-		//m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
+		
 		// Close the command list and execute it
 		m_commandList->Close();
 		ID3D12CommandList* ppCommandLists[] = { m_commandList };
@@ -557,14 +545,16 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* bu
 
 		m_D3D12Wrap->WaitForGPUCompletion(m_computeQueue, m_D3D12Wrap->GetTestFence());
 
+		buffer->m_resource = pResource;
+		if (bSRV)
+			CreateBufferSRV(buffer, cpuDescHandle, uElementSize, uCount);
+
 		SAFE_RELEASE(intermediateResource);
 	}
 	else
 	{
-		if (bSRV)
-			CreateBufferSRV(buffer, cpuDescHandle, uElementSize, uCount);
-		if (bUAV)
-			CreateBufferUAV(buffer, uElementSize, uCount);
+		buffer->m_resource = pResource;
+		CreateBufferUAV(buffer, uElementSize, uCount);
 	}
 
 	return pResource;

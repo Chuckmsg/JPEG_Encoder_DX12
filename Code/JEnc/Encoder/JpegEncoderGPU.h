@@ -193,6 +193,7 @@ protected:
 
 private:
 	ID3D12RootSignature* mRootSignature = nullptr;
+	ID3D12DescriptorHeap* mDescHeapSRV01 = nullptr;
 
 private:
 	HRESULT CreateBuffers();

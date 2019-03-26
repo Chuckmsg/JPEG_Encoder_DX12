@@ -48,18 +48,9 @@ public:
 	}
 	void CopyToStaging()
 	{
-		/*D3D12_RESOURCE_BARRIER barrier = {};
-		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		barrier.Transition.pResource = m_resource;
-		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;*/
-
 		m_cmdAllocator->Reset();
 		m_commandList->Reset(m_cmdAllocator, nullptr);
 		
-		//m_commandList->ResourceBarrier(1, &barrier);
 		m_commandList->CopyResource(m_staging, m_resource);
 
 		//Close the q and execute it
@@ -77,18 +68,13 @@ public:
 		D3D12_RANGE readbackBufferRange{ 0, gpuSize };
 		// Nullptr range because it might be read (?) Confirm this
 		m_staging->Map(0, &readbackBufferRange, reinterpret_cast<void**>(&p));
-		for (int i = 0; i < gpuSize; i++)
-		{
-			int g = (int)p[i];
-			const char* str = std::to_string(g).c_str();
-			OutputDebugString((LPCWSTR)str);
-		}
+
 		return p;
 	}
 
 	void Unmap()
 	{
-		D3D12_RANGE nullRange{ 0, gpuSize };
+		D3D12_RANGE nullRange{ 0, 0 };
 		m_staging->Unmap(0, &nullRange);
 	}
 
@@ -287,13 +273,13 @@ public:
 
 	DX12_ComputeShader* CreateComputeShader(TCHAR* shaderFile, char* pFunctionName, D3D_SHADER_MACRO* pDefines);
 
-	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID* pInitData, char* debugName = NULL);
+	ID3D12Resource* CreateConstantBuffer(ID3D12DescriptorHeap*& descriptorHeap, UINT uSize, VOID* pInitData, wchar_t* debugName = NULL);
 
 	DX12_ComputeBuffer* CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE uType, UINT uElementSize,
-		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
+		UINT uCount, bool bSRV, bool bUAV, VOID* pInitData, bool bCreateStaging = false, wchar_t* debugName = NULL);
 
 	DX12_ComputeTexture* CreateTexture(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, DXGI_FORMAT dxFormat, UINT uWidth,
-		UINT uHeight, UINT uRowPitch, VOID* pInitData, bool bCreateStaging = false, char* debugName = NULL);
+		UINT uHeight, UINT uRowPitch, VOID* pInitData, bool bCreateStaging = false, wchar_t* debugName = NULL);
 
 	DX12_ComputeTexture* CreateTextureFromBitmap(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, TCHAR* textureFilename, char* debugName = NULL);
 

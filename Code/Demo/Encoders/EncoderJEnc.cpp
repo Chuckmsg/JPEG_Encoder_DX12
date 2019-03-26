@@ -87,6 +87,7 @@ DX12_EncoderJEnc::~DX12_EncoderJEnc()
 	SAFE_DELETE(jEncoder444);
 	SAFE_DELETE(jEncoder422);
 	SAFE_DELETE(jEncoder420);
+	SAFE_RELEASE(copyTexture);
 }
 
 EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, unsigned char* Data, CHROMA_SUBSAMPLE subsampleType, float outputScale, int jpegQuality)
@@ -129,13 +130,13 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 	}
 	*/
 
-	JEncRGBDataDesc jD3D;
-	jD3D.Data = Data;
-	jD3D.Width = textureResource->GetDesc().Width;
-	jD3D.Height = textureResource->GetDesc().Height;
-	jD3D.RowPitch = textureResource->GetDesc().Width * 4;
+	//JEncRGBDataDesc jD3D;
+	//jD3D.Data = Data;
+	//jD3D.Width = textureResource->GetDesc().Width;
+	//jD3D.Height = textureResource->GetDesc().Height;
+	//jD3D.RowPitch = textureResource->GetDesc().Width * 4;
 
-	/*DX12_JEncD3DDataDesc jD3D;
+	DX12_JEncD3DDataDesc jD3D;
 	jD3D.Width = textureResource->GetDesc().Width;
 	jD3D.Height = textureResource->GetDesc().Height;
 
@@ -147,26 +148,35 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 		SAFE_RELEASE(descHeap);
 
 		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-		dhd.NumDescriptors = 3;
+		dhd.NumDescriptors = 1;
 		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		if (FAILED(mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&descHeap))))
 			return result;
-		descHeap->SetName((LPCWSTR)("Descriptor heap in EncoderJEnc"));
+		descHeap->SetName(L"Descriptor heap in EncoderJEnc");
 
-		jD3D.ptrToCB_DCT_Matrix = descHeap->GetCPUDescriptorHandleForHeapStart().ptr;
+		/*jD3D.ptrToCB_DCT_Matrix = descHeap->GetCPUDescriptorHandleForHeapStart().ptr;
 		UINT srvDescSize = mD3D12Wrap->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		jD3D.ptrToDescHeapImage = descHeap->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);
+		jD3D.ptrToDescHeapImage = descHeap->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);*/
 
 		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
-		cpuDescHandle.ptr = jD3D.ptrToDescHeapImage;
-		if (FAILED(CreateTextureResource(cpuDescHandle, textureResource)))
-			return result;
+		//cpuDescHandle.ptr = jD3D.ptrToDescHeapImage;
+		
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = textureResource->GetDesc().Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		
+		mD3D12Wrap->GetDevice()->CreateShaderResourceView(textureResource, &srvDesc, cpuDescHandle);
+		//if (FAILED(CreateTextureResource(cpuDescHandle, textureResource)))
+			//return result;
 	}
 	jD3D.DescriptorHeap = descHeap;
+	
 
-	if (FAILED(CopyTexture(textureResource)))
-		return result;*/
+	//if (FAILED(CopyTexture(textureResource)))
+		//return result;
 
 	VerifyDestinationBuffer(jD3D.Width, jD3D.Height);
 
@@ -247,13 +257,13 @@ HRESULT DX12_EncoderJEnc::CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpu
 
 HRESULT DX12_EncoderJEnc::CopyTexture(ID3D12Resource * textureResource)
 {
-	D3D12_RESOURCE_BARRIER barrier = {};
+	/*D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = copyTexture;
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;*/
 
 	//Get all the necessary D3D12 object pointers
 	ID3D12CommandAllocator * pCmdAllo = mD3D12Wrap->GetDirectAllocator();
@@ -264,8 +274,8 @@ HRESULT DX12_EncoderJEnc::CopyTexture(ID3D12Resource * textureResource)
 	pCompCmdList->Reset(pCmdAllo, nullptr);
 
 	//Fill the cmd q with commands
+	//pCompCmdList->ResourceBarrier(1, &barrier);
 	pCompCmdList->CopyResource(copyTexture, textureResource);
-	pCompCmdList->ResourceBarrier(1, &barrier);
 
 	//Close the q and execute it
 	pCompCmdList->Close();

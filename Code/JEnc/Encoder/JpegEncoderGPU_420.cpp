@@ -158,6 +158,14 @@ void DX12_JpegEncoderGPU_420::DoEntropyEncode()
 	mCB_EntropyResult->CopyToStaging();
 	int* pEntropyData = mCB_EntropyResult->Map<int>();
 
+	//for (int i = 0; i < 1800000 / 8; i++)
+	//{
+	//	auto lol = pEntropyData[i];
+	//	auto exDE = lol;
+
+	//	//pEntropyData[i] = 40;
+	//}
+
 	int iterations = mComputationWidthY / 16 * mComputationHeightY / 16;
 	while (iterations-- > 0)
 	{

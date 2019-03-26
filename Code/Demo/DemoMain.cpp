@@ -557,7 +557,7 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 	HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
 	
 	// Encode
-	EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+	EncodeResult res = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 
 	static int movieNum = 1;
 	if (GetAsyncKeyState(VK_F2))

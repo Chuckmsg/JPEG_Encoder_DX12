@@ -371,21 +371,22 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 		true, // UAV
 		NULL,
 		true,
-		"mCB_EntropyResult");
+		L"mCB_EntropyResult");
 
 	// After QuantizationTablesChanged
 	D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandleY = mDescHeapSRVsY->GetCPUDescriptorHandleForHeapStart();
 	cpuDescHandleY.ptr = Y_ptrToHuff;
-	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(cpuDescHandleY, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, "mCB_Huff_Y_AC");
+	mCB_Huff_Y_AC = mComputeSys->CreateBuffer(cpuDescHandleY, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Y_AC_Huffman_Table, false, L"mCB_Huff_Y_AC");
 	D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandleCbCr = mDescHeapSRVsCbCr->GetCPUDescriptorHandleForHeapStart();
 	cpuDescHandleCbCr.ptr = CbCr_ptrToHuff;
-	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(cpuDescHandleCbCr, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, "mCB_Huff_CbCr_AC");
+	mCB_Huff_CbCr_AC = mComputeSys->CreateBuffer(cpuDescHandleCbCr, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(BitString), 256, true, false, Cb_AC_Huffman_Table, false, L"mCB_Huff_CbCr_AC");
 
 	// Creates second
-	D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart();
-	cpuDescHandle.ptr = ptrToCB_DCT_Matrix;
-	mCB_DCT_Matrix = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix, false, "mCB_DCT_Matrix");
-	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, "mCB_DCT_Matrix_Transpose");
+	D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = mDescHeapSRV01->GetCPUDescriptorHandleForHeapStart();
+	//cpuDescHandle.ptr = ptrToCB_DCT_Matrix;
+	mCB_DCT_Matrix = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, (void*)DCT_matrix, false, L"mCB_DCT_Matrix");
+	cpuDescHandle.ptr += mD3D12Wrap->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, L"mCB_DCT_Matrix_Transpose");
 
 	ImageData id;
 	id.ImageWidth = (float)mImageWidth;
@@ -409,7 +410,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 	//	return E_FAIL;
 	mCB_ImageData_Y_Heap->SetName(L"mCB_ImageData_Y_Heap HEAP");
 
-	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(mCB_ImageData_Y_Heap, sizeof(ImageData), &id, "mCB_ImageData_Y");
+	mCB_ImageData_Y = mComputeSys->CreateConstantBuffer(mCB_ImageData_Y_Heap, sizeof(ImageData), &id, L"mCB_ImageData_Y");
 
 	id.NumBlocksX = mNumComputationBlocks_CbCr[0];
 	id.NumBlocksY = mNumComputationBlocks_CbCr[1];
@@ -425,7 +426,7 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 		return E_FAIL;
 	}
 	mCB_ImageData_CbCr_Heap->SetName(L"mCB_ImageData_CbCr_Heap HEAP");
-	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(mCB_ImageData_CbCr_Heap, sizeof(ImageData), &id, "mCB_ImageData_CbCr");
+	mCB_ImageData_CbCr = mComputeSys->CreateConstantBuffer(mCB_ImageData_CbCr_Heap, sizeof(ImageData), &id, L"mCB_ImageData_CbCr");
 
 
 	D3D12_SAMPLER_DESC samplerDesc;
@@ -476,7 +477,7 @@ void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandleY = mDescHeapSRVsY->GetCPUDescriptorHandleForHeapStart();
 		cpuDescHandleY.ptr = Y_ptrToQuantizationTable;
-		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(cpuDescHandleY, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, "mCB_Y_Quantization_Table");
+		mCB_Y_Quantization_Table = mComputeSys->CreateBuffer(cpuDescHandleY, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, Y_Quantization_Table_Float, false, L"mCB_Y_Quantization_Table");
 	}
 	else
 	{
@@ -487,7 +488,7 @@ void DX12_JpegEncoderGPU::QuantizationTablesChanged() // nr:1
 	{
 		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandleCbCr = mDescHeapSRVsCbCr->GetCPUDescriptorHandleForHeapStart();
 		cpuDescHandleCbCr.ptr = CbCr_ptrToQuantizationTable;
-		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(cpuDescHandleCbCr, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, "mCB_CbCr_Quantization_Table");
+		mCB_CbCr_Quantization_Table = mComputeSys->CreateBuffer(cpuDescHandleCbCr, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, CbCr_Quantization_Table_Float, false, L"mCB_CbCr_Quantization_Table");
 	}
 	else
 	{
@@ -595,15 +596,26 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			descRangesSampler[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
-
 	//	Descriptor ranges for SRV, UAV and CBV
 	D3D12_DESCRIPTOR_RANGE descRangesSRV[1];
 	{
-		//SRV, t0 - t2
+		//SRV, t1 - t2
 		{
 			descRangesSRV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			descRangesSRV[0].NumDescriptors = 3; // Do not know if this works
+			descRangesSRV[0].NumDescriptors = 2; // Do not know if this works
 			descRangesSRV[0].BaseShaderRegister = 0;
+			descRangesSRV[0].RegisterSpace = 0;
+			descRangesSRV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		}
+	}
+	//	Descriptor ranges for SRV, UAV and CBV
+	D3D12_DESCRIPTOR_RANGE descRangesSRVImage[1];
+	{
+		//SRV, t2
+		{
+			descRangesSRV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			descRangesSRV[0].NumDescriptors = 1; // Do not know if this works
+			descRangesSRV[0].BaseShaderRegister = 2;
 			descRangesSRV[0].RegisterSpace = 0;
 			descRangesSRV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
@@ -647,7 +659,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	}
 
 	//Create necessary Descriptor Tables
-	D3D12_ROOT_DESCRIPTOR_TABLE descTables[5];
+	D3D12_ROOT_DESCRIPTOR_TABLE descTables[6];
 	{
 		// Descriptor Table for the sampler
 		{
@@ -674,10 +686,16 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			descTables[4].NumDescriptorRanges = _ARRAYSIZE(descRangesCBV); //how many descriptors for this table
 			descTables[4].pDescriptorRanges = &descRangesCBV[0]; //pointer to descriptor array
 		}
+
+		// Descriptor Table for the SRV descriptors (the three first)
+		{
+			descTables[5].NumDescriptorRanges = _ARRAYSIZE(descRangesSRVImage); //how many descriptors for this table
+			descTables[5].pDescriptorRanges = &descRangesSRVImage[0]; //pointer to descriptor array
+		}
 	}
 
 	//Create the root parameters. Only two descriptor tables, one for sampler and the other for the SRV, UAV and CBV descriptors
-	D3D12_ROOT_PARAMETER rootParams[5];
+	D3D12_ROOT_PARAMETER rootParams[6];
 	{
 		// [0] - Descriptor table for smpler descriptors
 		{
@@ -708,6 +726,12 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			rootParams[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			rootParams[4].DescriptorTable = descTables[4];
 			rootParams[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		}
+		// [5] - Descriptor table for SRV descriptors (image)
+		{
+			rootParams[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[5].DescriptorTable = descTables[5];
+			rootParams[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		}
 	}
 
@@ -1099,7 +1123,7 @@ void DX12_JpegEncoderGPU::WriteImageData(JEncRGBDataDesc rgbDataDesc)
 		D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart();
 		cpuDescHandle.ptr = ptrToDescHeapImage;
 		mCT_RGBA = mComputeSys->CreateTexture(cpuDescHandle, DXGI_FORMAT_R8G8B8A8_UNORM,
-			rgbDataDesc.Width, rgbDataDesc.Height, rgbDataDesc.RowPitch, rgbDataDesc.Data, false, "WriteImageDataTexture HEAP"); // creates first
+			rgbDataDesc.Width, rgbDataDesc.Height, rgbDataDesc.RowPitch, rgbDataDesc.Data, false, L"WriteImageDataTexture HEAP"); // creates first
 	}
 
 	if (mDoCreateBuffers)
@@ -1120,6 +1144,13 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
 	{
 		//SAFE_RELEASE(mDescHeapSRVs);
+		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+		dhd.NumDescriptors = 1;
+		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mDescHeapSRV01));
+		mDescHeapSRV01->SetName(L"SRV t0-t1");
+
 		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
 		ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
 		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
@@ -1149,10 +1180,11 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	/*
 		Root parameters:
 			[0] = samplaer
-			[1] = SRV, t0 - t2
+			[1] = SRV, t0 - t1
 			[2] = SRV, t3 - t4
 			[3] = UAV
 			[4] = CBV
+			[5] = SRV, t2
 	*/
 
 	//Set the SRV and UAV descriptor heaps
@@ -1163,7 +1195,9 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	};*/
 	
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVs);
-	mDirectList->SetComputeRootDescriptorTable(1, mDescHeapSRVs->GetGPUDescriptorHandleForHeapStart()); // t0 - t2
+	mDirectList->SetComputeRootDescriptorTable(1, mDescHeapSRVs->GetGPUDescriptorHandleForHeapStart()); // t0 - t1
+	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRV01);
+	mDirectList->SetComputeRootDescriptorTable(5, mDescHeapSRV01->GetGPUDescriptorHandleForHeapStart()); // t2
 	
 	// Set sampler descriptor heap
 	ID3D12DescriptorHeap * samplerHeap[] = { mCB_SamplerState_PointClamp };
@@ -1185,10 +1219,11 @@ void DX12_JpegEncoderGPU::Dispatch()
 	/*
 		Root parameters:
 			[0] = samplaer
-			[1] = SRV, t0 - t2
+			[1] = SRV, t0 - t1
 			[2] = SRV, t3 - t4
 			[3] = UAV
 			[4] = CBV
+			[5] = SRV, t2
 	*/
 	
 	//Set a Resource Barrier for the active UAV so that the copy queue waits until all operations are completed
