@@ -383,8 +383,8 @@ HRESULT DX12_JpegEncoderGPU::CreateBuffers()
 
 	// Creates second
 	D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle = mDescHeapSRV01->GetCPUDescriptorHandleForHeapStart();
-	//cpuDescHandle.ptr = ptrToCB_DCT_Matrix;
-	mCB_DCT_Matrix = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, (void*)DCT_matrix, false, L"mCB_DCT_Matrix");
+	cpuDescHandle.ptr = ptrToCB_DCT_Matrix;
+	mCB_DCT_Matrix = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, /*(void*)*/DCT_matrix, false, L"mCB_DCT_Matrix");
 	cpuDescHandle.ptr += mD3D12Wrap->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	mCB_DCT_Matrix_Transpose = mComputeSys->CreateBuffer(cpuDescHandle, DX12_COMPUTE_BUFFER_TYPE::DX12_STRUCTURED_BUFFER, sizeof(float), 64, true, false, DCT_matrix_transpose, false, L"mCB_DCT_Matrix_Transpose");
 
@@ -525,10 +525,9 @@ HRESULT DX12_JpegEncoderGPU::createDescriptorHeapForSRVs()
 	{
 		return E_FAIL;
 	}
-	ptrToCB_DCT_Matrix = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr;
+	/*ptrToCB_DCT_Matrix = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr;
 	UINT srvDescSize = mD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	ptrToDescHeapImage = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);
-
+	ptrToDescHeapImage = mDescHeapSRVs->GetCPUDescriptorHandleForHeapStart().ptr + (srvDescSize * 2);*/
 	return S_OK;
 }
 
@@ -996,17 +995,20 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 	mShader_Cr_Component = NULL;
 
 	//SAFE_RELEASE(mDescHeapSRVs);
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.NumDescriptors = 2;
-	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mDescHeapSRV01));
+	D3D12_DESCRIPTOR_HEAP_DESC dhd01 = {};
+	dhd01.NumDescriptors = 2;
+	dhd01.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd01.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd01, IID_PPV_ARGS(&mDescHeapSRV01));
 	mDescHeapSRV01->SetName(L"SRV t0-t1");
+
+	ptrToCB_DCT_Matrix = mDescHeapSRV01->GetCPUDescriptorHandleForHeapStart().ptr;
 }
 
 DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
 {
 	ReleaseQuantizationBuffers();
+	SAFE_RELEASE(mDescHeapSRV01);
 	SAFE_RELEASE(mDescHeapSRVs);
 	SAFE_RELEASE(mDescHeapSRVsY);
 	SAFE_RELEASE(mDescHeapSRVsCbCr);
@@ -1152,7 +1154,7 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
 	{
 		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
-		ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
+		//ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
 		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
 	}
 
@@ -1194,10 +1196,10 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 		pSRV ? pSRV : (mCT_RGBA ? mCT_RGBA->GetHeap() : NULL)
 	};*/
 	
-	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVs);
-	mDirectList->SetComputeRootDescriptorTable(1, mDescHeapSRVs->GetGPUDescriptorHandleForHeapStart()); // t0 - t1
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRV01);
-	mDirectList->SetComputeRootDescriptorTable(5, mDescHeapSRV01->GetGPUDescriptorHandleForHeapStart()); // t2
+	mDirectList->SetComputeRootDescriptorTable(1, mDescHeapSRV01->GetGPUDescriptorHandleForHeapStart()); // t0 - t1
+	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVs);
+	mDirectList->SetComputeRootDescriptorTable(5, mDescHeapSRVs->GetGPUDescriptorHandleForHeapStart()); // t2
 	
 	// Set sampler descriptor heap
 	ID3D12DescriptorHeap * samplerHeap[] = { mCB_SamplerState_PointClamp };
