@@ -48,9 +48,18 @@ public:
 	}
 	void CopyToStaging()
 	{
+		D3D12_RESOURCE_BARRIER barrier{};
+		MakeResourceBarrier(
+			barrier,
+			D3D12_RESOURCE_BARRIER_TYPE_UAV,
+			m_resource,
+			D3D12_RESOURCE_STATES(0), //UAV does not need transition states
+			D3D12_RESOURCE_STATES(0)
+		);
+
 		m_cmdAllocator->Reset();
 		m_commandList->Reset(m_cmdAllocator, nullptr);
-		
+		m_commandList->ResourceBarrier(1, &barrier);
 		m_commandList->CopyResource(m_staging, m_resource);
 
 		//Close the q and execute it

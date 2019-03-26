@@ -613,11 +613,11 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	{
 		//SRV, t2
 		{
-			descRangesSRV[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			descRangesSRV[0].NumDescriptors = 1; // Do not know if this works
-			descRangesSRV[0].BaseShaderRegister = 2;
-			descRangesSRV[0].RegisterSpace = 0;
-			descRangesSRV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+			descRangesSRVImage[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			descRangesSRVImage[0].NumDescriptors = 1; // Do not know if this works
+			descRangesSRVImage[0].BaseShaderRegister = 2;
+			descRangesSRVImage[0].RegisterSpace = 0;
+			descRangesSRVImage[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
 	//	Descriptor ranges for SRV, UAV and CBV
@@ -994,6 +994,14 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;
+
+	//SAFE_RELEASE(mDescHeapSRVs);
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.NumDescriptors = 2;
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mDescHeapSRV01));
+	mDescHeapSRV01->SetName(L"SRV t0-t1");
 }
 
 DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
@@ -1143,14 +1151,6 @@ void DX12_JpegEncoderGPU::WriteImageData(DX12_JEncD3DDataDesc d3dDataDesc) // nr
 {
 	if (mDescHeapSRVs != d3dDataDesc.DescriptorHeap)
 	{
-		//SAFE_RELEASE(mDescHeapSRVs);
-		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-		dhd.NumDescriptors = 1;
-		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&mDescHeapSRV01));
-		mDescHeapSRV01->SetName(L"SRV t0-t1");
-
 		mDescHeapSRVs = d3dDataDesc.DescriptorHeap;
 		ptrToCB_DCT_Matrix = d3dDataDesc.ptrToCB_DCT_Matrix;
 		ptrToDescHeapImage = d3dDataDesc.ptrToDescHeapImage;
