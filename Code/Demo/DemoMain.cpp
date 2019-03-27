@@ -69,9 +69,6 @@ enum ProfilingStages
 	DX11_Encoding = 2,
 
 	DX12_DispatchUAV = 0,
-	DX12_EncodeDispatch100 = 0,
-	DX12_EncodeDispatch50 = 1,
-	DX12_EncodeDispatch25 = 2,
 	DX12_CopyToBackbuffer = 0
 };
 #define ENUM_TO_STR(ENUM) std::string(#ENUM)
@@ -393,7 +390,6 @@ HRESULT Render(float deltaTime, HWND hwnd)
 
 #ifdef _DEBUG
 	d3d11Profiler->CalculateAllDurations();
-	d3d11Profiler->PrintAllToDebugOutput();
 #endif // _DEBUG
 
 	return S_OK;
@@ -481,9 +477,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 			Render(dt, hwnd);
 
 			if (durations.size() < MAX_DURATIONS)
-				durations.push_back((double)(dt * 1000.f)); //convert to clocks per ms
-
-			OutputDebugStringA(("\nCPU FrameTime: " + std::to_string(double(dt * 1000.f)) + " ms\n").c_str());
+				durations.push_back((double)(dt * 1000.f)); //convert to ms
 
 			prevTimeStamp = currTimeStamp;
 		}
@@ -805,6 +799,7 @@ void WorkerThread()
 		if (!present)
 		{
 			ComputeListProfiler->Update();
+			DirectListProfiler->Update();
 
 			PopulateComputeList(pCompCmdList);
 			PopulateDirectList(pDirectCmdList);
@@ -823,7 +818,7 @@ void WorkerThread()
 			resultMutex.unlock();
 
 			ComputeListProfiler->CalculateAllDurations();
-			ComputeListProfiler->PrintAllToDebugOutput();
+			DirectListProfiler->CalculateAllDurations();
 
 			presentMutex.lock();
 			present = true;

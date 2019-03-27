@@ -22,6 +22,7 @@ D3DProfiler::~D3DProfiler()
 void D3DProfiler::Init(PROFILER profiler)
 {
 	m_profiler = profiler;
+	t = clock();
 	switch (profiler)
 	{
 	case DX11:
@@ -226,7 +227,8 @@ void D3DProfiler::CalculateAllDurations()
 			m_deviceContext->GetData(pair.begin, (void*)&begin, sizeof(UINT64), 0);
 			m_deviceContext->GetData(pair.end, (void*)&end, sizeof(UINT64), 0);
 			pair.duration = (double)(((float)(end - begin)) / float(tsDisjoint.Frequency) * 1000.f); //convert from Seconds to Milliseconds
-			m_recordings.push_back({ pair.regionName, pair.duration });
+			if (m_recordings.size() < (m_frameLimit* m_TimestampPairs.size()))
+				m_recordings.push_back({ pair.regionName, pair.duration });
 		}
 	}
 	if (m_profiler == DX12)
@@ -244,7 +246,7 @@ void D3DProfiler::CalculateAllDurations()
 			begin = data[i * 2];
 			end = data[(i * 2) + 1];
 			m_TimestampPairs[i].duration = (double)(((float)(end - begin)) / float(m_gpuFrequency) * 1000.f);
-			if (m_recordings.size() < m_frameLimit)
+			if (m_recordings.size() < (m_frameLimit* m_TimestampPairs.size()))
 				m_recordings.push_back({ m_TimestampPairs[i].regionName, m_TimestampPairs[i].duration });
 		}
 
@@ -268,7 +270,6 @@ void D3DProfiler::PrintAllToDebugOutput()
 
 void D3DProfiler::Update()
 {
-	static clock_t t = clock();
 	clock_t dur = clock() - t;
 
 	if ( (double)(dur / (double(CLOCKS_PER_SEC))) >= TIME_LIMIT)

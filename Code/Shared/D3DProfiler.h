@@ -65,9 +65,10 @@ private:
 	};
 	std::vector<TimestampPair> m_TimestampPairs;
 	std::string m_name = "UNNAMED PROFILER";
-	unsigned int m_frameLimit = 25;
+	unsigned int m_frameLimit = 10;
 	std::vector<std::pair<std::string, double>> m_recordings;
 
+	clock_t t;
 	void FlushRecordingsToFile();
 };
 
