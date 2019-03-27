@@ -279,9 +279,9 @@ DX12_ComputeBuffer * DX12_ComputeWrap::CreateBuffer(D3D12_CPU_DESCRIPTOR_HANDLE&
 	bool bSRV, bool bUAV, VOID * pInitData, bool bCreateStaging, wchar_t * debugName)
 {
 	DX12_ComputeBuffer* buffer = new DX12_ComputeBuffer();
-	buffer->m_commandList = m_commandList;
-	buffer->m_cmdAllocator = m_cmdAllocator;
-	buffer->m_computeQueue = m_computeQueue;
+	buffer->m_colyCommandList = m_colyCommandList;
+	buffer->m_copyCmdAllocator = m_copyCmdAllocator;
+	buffer->m_copyQueue = m_copyQueue;
 	buffer->m_D3D12Wrap = m_D3D12Wrap;
 
 	if (bUAV)

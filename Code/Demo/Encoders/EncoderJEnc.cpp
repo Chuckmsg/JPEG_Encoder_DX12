@@ -93,7 +93,6 @@ DX12_EncoderJEnc::~DX12_EncoderJEnc()
 EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, unsigned char* Data, CHROMA_SUBSAMPLE subsampleType, float outputScale, int jpegQuality)
 {
 	EncodeResult result;
-	//DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(device, textureResource, outputScale);
 	
 	/*
 	// Copy the intermediate render target to the cross-adapter shared resource.
@@ -136,40 +135,11 @@ EncodeResult DX12_EncoderJEnc::DX12_Encode(ID3D12Resource * textureResource, uns
 	//jD3D.Height = textureResource->GetDesc().Height;
 	//jD3D.RowPitch = textureResource->GetDesc().Width * 4;
 
+	DX12_PreparedSurface ps = surfacePreparation->GetValidSurface(mD3D12Wrap->GetDevice(), textureResource, outputScale);
 	DX12_JEncD3DDataDesc jD3D;
-	jD3D.Width = textureResource->GetDesc().Width;
-	jD3D.Height = textureResource->GetDesc().Height;
-
-	if (currentTextureResourcePtr != textureResource)
-	{
-		currentTextureResourcePtr = textureResource;
-
-		SAFE_RELEASE(copyTexture);
-		SAFE_RELEASE(descHeap);
-
-		D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-		dhd.NumDescriptors = 1;
-		dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if (FAILED(mD3D12Wrap->GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&descHeap))))
-			return result;
-		descHeap->SetName(L"Descriptor heap in EncoderJEnc");
-		
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = textureResource->GetDesc().Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = 1;
-		
-		mD3D12Wrap->GetDevice()->CreateShaderResourceView(textureResource, &srvDesc, descHeap->GetCPUDescriptorHandleForHeapStart());
-		//if (FAILED(CreateTextureResource(cpuDescHandle, textureResource)))
-			//return result;
-	}
-	jD3D.DescriptorHeap = descHeap;
-	
-
-	//if (FAILED(CopyTexture(textureResource)))
-		//return result;
+	jD3D.DescriptorHeap = ps.Heap;
+	jD3D.Width = ps.Width;
+	jD3D.Height = ps.Height;
 
 	VerifyDestinationBuffer(jD3D.Width, jD3D.Height);
 
