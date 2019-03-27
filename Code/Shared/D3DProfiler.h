@@ -4,11 +4,13 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <time.h>
 
 class D3DProfiler
 {
 public:
 	static const UINT MAX_QUERIES = 128;
+	const double TIME_LIMIT = 2.0;
 	enum PROFILER
 	{
 		DX11 = 0,

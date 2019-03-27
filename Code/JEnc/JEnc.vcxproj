@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\ComputeShader.h" />
+    <ClInclude Include="..\Shared\D3DProfiler.h" />
     <ClInclude Include="..\Shared\DX12_ComputeShader.h" />
     <ClInclude Include="..\Shared\JpegCommon.h" />
     <ClInclude Include="Encoder\JpegEncoderBase.h" />
@@ -33,6 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Shared\ComputeShader.cpp" />
+    <ClCompile Include="..\Shared\D3DProfiler.cpp" />
     <ClCompile Include="..\Shared\DX12_ComputeShader.cpp" />
     <ClCompile Include="Encoder\JpegEncoderBase.cpp" />
     <ClCompile Include="Encoder\JpegEncoderGPU.cpp" />
@@ -149,6 +151,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DLL_EXPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;BTHFBX_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

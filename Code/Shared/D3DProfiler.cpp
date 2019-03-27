@@ -244,7 +244,8 @@ void D3DProfiler::CalculateAllDurations()
 			begin = data[i * 2];
 			end = data[(i * 2) + 1];
 			m_TimestampPairs[i].duration = (double)(((float)(end - begin)) / float(m_gpuFrequency) * 1000.f);
-			m_recordings.push_back({ m_TimestampPairs[i].regionName, m_TimestampPairs[i].duration });
+			if (m_recordings.size() < m_frameLimit)
+				m_recordings.push_back({ m_TimestampPairs[i].regionName, m_TimestampPairs[i].duration });
 		}
 
 		m_buffer->Unmap(0, NULL);
@@ -267,15 +268,15 @@ void D3DProfiler::PrintAllToDebugOutput()
 
 void D3DProfiler::Update()
 {
-	static unsigned int counter = 0;
+	static clock_t t = clock();
+	clock_t dur = clock() - t;
 
-	if (counter >= m_frameLimit)
+	if ( (double)(dur / (double(CLOCKS_PER_SEC))) >= TIME_LIMIT)
 	{
 		FlushRecordingsToFile();
-		counter = 0;
+		t = clock();
 	}
-	else
-		counter++;
+
 }
 
 void D3DProfiler::FlushRecordingsToFile()

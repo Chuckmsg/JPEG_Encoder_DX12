@@ -11,6 +11,8 @@
 #include "../../Shared/DX12_ComputeShader.h"
 
 #include "../../Demo/D3DWrap/D3DWrap.h"
+#include "../../Shared/D3DProfiler.h"
+
 
 class JpegEncoderGPU : public JpegEncoderBase
 {
@@ -241,4 +243,16 @@ protected:
 
 	// New functions
 	HRESULT createPiplineStateObjects();
+
+private:
+	enum ProfilingStages
+	{
+		DispatchFrameTime = 0,
+		DispatchYComponent = 1,
+		DispatchCbComponent = 2,
+		DispatchCrComponent = 3
+	};
+	D3DProfiler * m_DispatchProfiler = NULL;
 };
+
+#define ENUM_TO_STRING(ENUM) std::string(#ENUM)

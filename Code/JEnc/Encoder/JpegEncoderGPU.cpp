@@ -7,6 +7,7 @@
 
 #include <tchar.h>
 
+
 JpegEncoderGPU::JpegEncoderGPU(ID3D11Device* d3dDevice,	ID3D11DeviceContext* d3dContext)
 	: mD3DDevice(d3dDevice), mD3DDeviceContext(d3dContext)
 {
@@ -1001,6 +1002,15 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 	mDescHeapSRV01->SetName(L"SRV t0-t1");
 
 	ptrToCB_DCT_Matrix = mDescHeapSRV01->GetCPUDescriptorHandleForHeapStart().ptr;
+
+	m_DispatchProfiler = new D3DProfiler(mD3DDevice, mDirectList, mDirectQueue);
+	m_DispatchProfiler->SetName("DX12_EncodeProfiler");
+	m_DispatchProfiler->Init(D3DProfiler::DX12);
+
+	m_DispatchProfiler->CreateTimestamp(ENUM_TO_STRING(DispatchFrameTime));
+	m_DispatchProfiler->CreateTimestamp(ENUM_TO_STRING(DispatchYComponent));
+	m_DispatchProfiler->CreateTimestamp(ENUM_TO_STRING(DispatchCbComponent));
+	m_DispatchProfiler->CreateTimestamp(ENUM_TO_STRING(DispatchCrComponent));
 }
 
 DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
@@ -1013,6 +1023,13 @@ DX12_JpegEncoderGPU::~DX12_JpegEncoderGPU()
 	ReleaseBuffers();
 	SAFE_DELETE(mCT_RGBA);
 	ReleaseShaders();
+
+	if (m_DispatchProfiler)
+	{
+		m_DispatchProfiler->CleanUp();
+		delete m_DispatchProfiler;
+	}
+
 	shutdown();
 }
 
@@ -1203,11 +1220,13 @@ void DX12_JpegEncoderGPU::DoQuantization(ID3D12DescriptorHeap * pSRV)
 	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
 
 	mD3D12Wrap->WaitForGPUCompletion(mDirectQueue, mD3D12Wrap->GetTestFence());
+
+	m_DispatchProfiler->CalculateAllDurations();
 }
 
 void DX12_JpegEncoderGPU::Dispatch()
 {
-
+	m_DispatchProfiler->Update();
 	/*
 		Root parameters:
 			[0] = samplaer
@@ -1227,6 +1246,8 @@ void DX12_JpegEncoderGPU::Dispatch()
 		D3D12_RESOURCE_STATES(0), //UAV does not need transition states
 		D3D12_RESOURCE_STATES(0)
 	);
+	m_DispatchProfiler->StartProfiler();
+	m_DispatchProfiler->BeginTimestamp(DispatchFrameTime);
 
 	ID3D12DescriptorHeap * uavHeap[] = { mCB_EntropyResult->GetHeap() };
 	mDirectList->SetDescriptorHeaps(1, uavHeap);
@@ -1241,7 +1262,9 @@ void DX12_JpegEncoderGPU::Dispatch()
 
 	// Dispatch Y component
 	mDirectList->SetPipelineState(mPSO_Y_Component);
+	m_DispatchProfiler->BeginTimestamp(DispatchYComponent);
 	mDirectList->Dispatch(mNumComputationBlocks_Y[0], mNumComputationBlocks_Y[1], 1);
+	m_DispatchProfiler->EndTimestamp(DispatchYComponent);
 	mDirectList->ResourceBarrier(1, &barrier);
 
 	mDirectList->SetDescriptorHeaps(1, &mDescHeapSRVsCbCr);
@@ -1253,14 +1276,21 @@ void DX12_JpegEncoderGPU::Dispatch()
 
 	// Dispatch Cb component
 	mDirectList->SetPipelineState(mPSO_Cb_Component);
+	m_DispatchProfiler->BeginTimestamp(DispatchCbComponent);
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
+	m_DispatchProfiler->EndTimestamp(DispatchCbComponent);
 	mDirectList->ResourceBarrier(1, &barrier);
 
 	// Dispatch Cr component
 	mDirectList->SetPipelineState(mPSO_Cr_Component);
+	m_DispatchProfiler->BeginTimestamp(DispatchCrComponent);
 	mDirectList->Dispatch(mNumComputationBlocks_CbCr[0], mNumComputationBlocks_CbCr[1], 1);
-
+	m_DispatchProfiler->EndTimestamp(DispatchCrComponent);
 	mDirectList->ResourceBarrier(1, &barrier);
+
+	m_DispatchProfiler->EndTimestamp(DispatchFrameTime);
+	m_DispatchProfiler->EndProfiler();
+
 	mDirectList->Close();
 }
 

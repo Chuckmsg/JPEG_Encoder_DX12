@@ -15,6 +15,7 @@
 
 #include <thread>
 #include<mutex>
+#include <time.h>
 
 DX12_EncoderJEnc* jencEncoder = nullptr;
 SurfacePreperationDX12 gSurfacePrepDX12;
@@ -47,7 +48,9 @@ bool DX12				= false;
 D3D12Wrap				gD3D12;
 ID3D12PipelineState * gBackBufferPipelineState = NULL;
 float * cbData			= NULL;
-D3DProfiler* d3d12Profiler = NULL;
+
+D3DProfiler* ComputeListProfiler = NULL;
+D3DProfiler* DirectListProfiler = NULL;
 
 EncodeResult gRes;
 std::mutex resultMutex;
@@ -65,9 +68,17 @@ enum ProfilingStages
 	DX11_DispatchUAV= 1,
 	DX11_Encoding = 2,
 
-	DX12_DispatchUAV = 0
+	DX12_DispatchUAV = 0,
+	DX12_EncodeDispatch100 = 0,
+	DX12_EncodeDispatch50 = 1,
+	DX12_EncodeDispatch25 = 2,
+	DX12_CopyToBackbuffer = 0
 };
 #define ENUM_TO_STR(ENUM) std::string(#ENUM)
+
+clock_t timeStamp;
+std::vector<double> durations;
+const int MAX_DURATIONS = 25;
 
 //--------------------------------------------------------------------------------------
 // Forward declarations
@@ -79,10 +90,12 @@ HRESULT				Update(float deltaTime, HWND hwnd);
 HRESULT				Cleanup();
 
 HRESULT				InitDX12(HWND hwnd, unsigned int width, unsigned int height);
+void						InitDX12Profilers();
 HRESULT				RenderDX12(float deltaTime, HWND hwnd);
 void						PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList);
 void						PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList);
 void						WorkerThread();
+void						DumpCPUFrameTimesToFile();
 
 HRESULT				UpdateDX12(float deltaTime, HWND hwnd);
 HRESULT				CreateBackBufferPSO();
@@ -127,10 +140,7 @@ HRESULT Init(HWND hwnd, int width, int height)
 			//D3D12_RESOURCE_DESC& desc = gD3D12.GetBackBufferResource(0)->GetDesc();
 			//testTexture = CreateTextureResource(desc.Format, desc.Width, desc.Height, 0, gD3D12.GetBackBufferResource(0)->);
 
-			d3d12Profiler = new D3DProfiler(gD3D12.GetDevice(), gD3D12.GetComputeCmdList(), gD3D12.GetComputeQueue());
-			d3d12Profiler->SetName("DX12_Compute");
-			d3d12Profiler->Init(D3DProfiler::DX12);
-			d3d12Profiler->CreateTimestamp(ENUM_TO_STR(DX12_DispatchUAV));
+			InitDX12Profilers();
 
 			return S_OK;
 		}
@@ -169,7 +179,7 @@ HRESULT Init(HWND hwnd, int width, int height)
 			return E_FAIL;
 
 		d3d11Profiler = new D3DProfiler(gD3D.GetDevice(), gD3D.GetDeviceContext());
-		d3d11Profiler->SetName("DirectX11");
+		d3d11Profiler->SetName("DX11_Profiler");
 		d3d11Profiler->Init(D3DProfiler::DX11);
 
 		d3d11Profiler->CreateTimestamp(ENUM_TO_STR(DX11_FrameTime));
@@ -205,8 +215,12 @@ HRESULT Cleanup()
 		SAFE_RELEASE(gBackBufferPipelineState);
 		gD3D12.Cleanup();
 		gSurfacePrepDX12.Cleanup();
-		d3d12Profiler->CleanUp();
-		delete d3d12Profiler;
+
+		ComputeListProfiler->CleanUp();
+		delete ComputeListProfiler;
+
+		DirectListProfiler->CleanUp();
+		delete DirectListProfiler;
 	}
 	else
 	{
@@ -272,6 +286,8 @@ HRESULT Update(float deltaTime, HWND hwnd)
 		gChromaSubsampling = CHROMA_SUBSAMPLE_4_2_2;
 	if(GetAsyncKeyState(VK_NUMPAD3))
 		gChromaSubsampling = CHROMA_SUBSAMPLE_4_2_0;
+
+	DumpCPUFrameTimesToFile();
 
 	return S_OK;
 }
@@ -422,6 +438,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	// Main message loop
 	MSG msg = {0};
 	int sleep = 0;
+
 	while(WM_QUIT != msg.message)
 	{
 		if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
@@ -445,7 +462,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 				fps = (float)((double)cntsPerSec/(double)(prevTimeStamp-currTimeStamp));
 				dt = (prevTimeStamp - currTimeStamp) * secsPerCnt;
 			}
-
+			
 			if(gLockedFrameRate > 0)
 			{
 				if((int)fps < gLockedFrameRate ) 
@@ -462,6 +479,11 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 			//render
 			Update(dt, hwnd);
 			Render(dt, hwnd);
+
+			if (durations.size() < MAX_DURATIONS)
+				durations.push_back((double)(dt * 1000.f)); //convert to clocks per ms
+
+			OutputDebugStringA(("\nCPU FrameTime: " + std::to_string(double(dt * 1000.f)) + " ms\n").c_str());
 
 			prevTimeStamp = currTimeStamp;
 		}
@@ -529,7 +551,7 @@ HWND InitWindow( HINSTANCE hInstance, int nCmdShow, int width, int height )
 	if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &lpDevMode) == 0)
 		gScreenRefreshRate = 60;
 	else
-		gScreenRefreshRate = (int)lpDevMode.dmDisplayFrequency;
+		gScreenRefreshRate = 0;// (int)lpDevMode.dmDisplayFrequency;
 	
 	gLockedFrameRate = gScreenRefreshRate;
 
@@ -576,6 +598,19 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 HRESULT InitDX12(HWND hwnd, unsigned int width, unsigned int height)
 {
 	return gD3D12.Init(hwnd, width, height);
+}
+
+void InitDX12Profilers()
+{
+	ComputeListProfiler = new D3DProfiler(gD3D12.GetDevice(), gD3D12.GetComputeCmdList(), gD3D12.GetComputeQueue());
+	ComputeListProfiler->SetName("DX12_ComputeProfiler");
+	ComputeListProfiler->Init(D3DProfiler::DX12);
+	ComputeListProfiler->CreateTimestamp(ENUM_TO_STR(DX12_DispatchUAV));
+
+	DirectListProfiler = new D3DProfiler(gD3D12.GetDevice(), gD3D12.GetDirectCmdList(), gD3D12.GetDirectQueue());
+	DirectListProfiler->SetName("DX12_DirectProfiler");
+	DirectListProfiler->Init(D3DProfiler::DX12);
+	DirectListProfiler->CreateTimestamp(ENUM_TO_STR(DX12_CopyToBackbuffer));
 }
 
 HRESULT RenderDX12(float deltaTime, HWND hwnd)
@@ -678,8 +713,8 @@ void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
 	pCompCmdAllo->Reset();
 	pCompCmdList->Reset(pCompCmdAllo, gBackBufferPipelineState);
 
-	d3d12Profiler->StartProfiler();
-	d3d12Profiler->BeginTimestamp(DX12_DispatchUAV);
+	ComputeListProfiler->StartProfiler();
+	ComputeListProfiler->BeginTimestamp(DX12_DispatchUAV);
 	//Set the Root Signature
 	pCompCmdList->SetComputeRootSignature(gD3D12.GetRootSignature());
 
@@ -706,8 +741,8 @@ void PopulateComputeList(ID3D12GraphicsCommandList * pCompCmdList)
 	pCompCmdList->Dispatch(25, 25, 1);
 	pCompCmdList->ResourceBarrier(1, &barrier);
 
-	d3d12Profiler->EndTimestamp(DX12_DispatchUAV);
-	d3d12Profiler->EndProfiler();
+	ComputeListProfiler->EndTimestamp(DX12_DispatchUAV);
+	ComputeListProfiler->EndProfiler();
 
 	pCompCmdList->Close();
 }
@@ -723,6 +758,8 @@ void PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList)
 	pDirectCmdList->Reset(pDirectCmdAllo, nullptr);
 	pDirectCmdList->SetComputeRootSignature(gD3D12.GetRootSignature());
 
+	DirectListProfiler->StartProfiler();
+	DirectListProfiler->BeginTimestamp(DX12_CopyToBackbuffer);
 	//prepare the backbuffer for copy
 	D3D12_RESOURCE_BARRIER cpyBarrierDest{};
 	MakeResourceBarrier(
@@ -746,6 +783,9 @@ void PopulateDirectList(ID3D12GraphicsCommandList * pDirectCmdList)
 	);
 	pDirectCmdList->ResourceBarrier(1, &cpyBarrierDone);
 
+	DirectListProfiler->EndTimestamp(DX12_CopyToBackbuffer);
+	DirectListProfiler->EndProfiler();
+
 	pDirectCmdList->Close();
 }
 
@@ -764,7 +804,7 @@ void WorkerThread()
 	{
 		if (!present)
 		{
-			d3d12Profiler->Update();
+			ComputeListProfiler->Update();
 
 			PopulateComputeList(pCompCmdList);
 			PopulateDirectList(pDirectCmdList);
@@ -782,13 +822,39 @@ void WorkerThread()
 			gRes = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 			resultMutex.unlock();
 
-			d3d12Profiler->CalculateAllDurations();
-			d3d12Profiler->PrintAllToDebugOutput();
+			ComputeListProfiler->CalculateAllDurations();
+			ComputeListProfiler->PrintAllToDebugOutput();
 
 			presentMutex.lock();
 			present = true;
 			presentMutex.unlock();
 		}
+	}
+}
+
+void DumpCPUFrameTimesToFile()
+{
+	static const double T = 2.0; //dump after 2 seconds
+	static clock_t t = clock();
+
+	clock_t current = clock() - t;
+	double duration = (double)(current) / CLOCKS_PER_SEC;
+	if (duration >= T)
+	{
+		t = clock();
+		std::string fileName = "CpuFrameTimeMS_DX11.txt";
+		if (DX12)
+			fileName = "CpuFrameTimeMS_DX12.txt";
+
+		std::ofstream ofs;
+		ofs.open(fileName.c_str(), std::ofstream::out);
+		if (ofs.is_open())
+		{
+			for (double &val : durations)
+				ofs << val << std::endl;
+		}
+		ofs.close();
+		durations.clear();
 	}
 }
 
