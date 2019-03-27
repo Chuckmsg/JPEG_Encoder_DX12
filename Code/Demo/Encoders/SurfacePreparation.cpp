@@ -658,7 +658,7 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 		result.Height = rescaledHeight;
 		if (shaderResource1 == texture)
 		{
-			render(rtvDescHeap1, descHeap1);
+			render(rtvTexture1, rtvDescHeap1, descHeap1);
 
 			copyTexture(copyTexture1, rtvTexture1);
 
@@ -666,7 +666,7 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 		}
 		if (shaderResource2 == texture)
 		{
-			render(rtvDescHeap2, descHeap2);
+			render(rtvTexture2, rtvDescHeap2, descHeap2);
 
 			copyTexture(copyTexture2, rtvTexture2);
 
@@ -1168,7 +1168,7 @@ HRESULT SurfacePreperationDX12::createStagingBuffer(UINT64 size)
 	return hr;
 }
 
-void SurfacePreperationDX12::render(ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap)
+void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap)
 {
 	ThrowIfFailed(m_cmdAllocator->Reset());
 	ThrowIfFailed(m_commandList->Reset(m_cmdAllocator, m_PSO));
@@ -1192,7 +1192,6 @@ void SurfacePreperationDX12::render(ID3D12DescriptorHeap*& rtvDescriptorHeap, ID
 	scissorRect.bottom = (long)vp.Height;
 	m_commandList->RSSetScissorRects(1, &scissorRect);
 
-	// Record commands.
 	m_commandList->OMSetRenderTargets(1, &rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), TRUE, &m_depthHeap->GetCPUDescriptorHandleForHeapStart());
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -1202,6 +1201,7 @@ void SurfacePreperationDX12::render(ID3D12DescriptorHeap*& rtvDescriptorHeap, ID
 	m_commandList->SetPipelineState(m_PSO);
 	//m_commandList->IASetVertexBuffers(0, 1, &_vertexBuffer_View);
 
+	// Record commands.
 	m_commandList->DrawInstanced(4, 1, 0, 0);
 
 	m_commandList->Close();
@@ -1320,11 +1320,32 @@ void SurfacePreperationDX12::createVertexBuffer(size_t wsize, size_t count, cons
 
 void SurfacePreperationDX12::copyTexture(ID3D12Resource *& destTexture, ID3D12Resource *& TextureToCopy)
 {
+	D3D12_RESOURCE_BARRIER barrier{};
+	MakeResourceBarrier(
+		barrier,
+		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+		TextureToCopy,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_COPY_SOURCE
+	);
+
 	m_cmdAllocator->Reset();
 	m_commandList->Reset(m_cmdAllocator, nullptr);
 
 	//Fill the cmd q with commands
+	m_commandList->ResourceBarrier(1, &barrier);
 	m_commandList->CopyResource(destTexture, TextureToCopy);
+
+	D3D12_RESOURCE_BARRIER barrier2{};
+	MakeResourceBarrier(
+		barrier2,
+		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+		TextureToCopy,
+		D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	m_commandList->ResourceBarrier(1, &barrier2);
 
 	//Close the q and execute it
 	m_commandList->Close();
