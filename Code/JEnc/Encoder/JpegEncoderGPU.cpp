@@ -987,7 +987,7 @@ DX12_JpegEncoderGPU::DX12_JpegEncoderGPU(D3D12Wrap* d3dWrap) // nr:0
 		exit(-1);
 	}
 
-	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue, d3dWrap);
+	mComputeSys = new DX12_ComputeWrap(mD3DDevice, mDirectList, mDirectAllocator, mDirectQueue, mCopyList, mCopyAllocator, mCopyQueue, d3dWrap);
 	mShader_Y_Component = NULL;
 	mShader_Cb_Component = NULL;
 	mShader_Cr_Component = NULL;

@@ -57,17 +57,18 @@ public:
 			D3D12_RESOURCE_STATES(0)
 		);
 
-		m_cmdAllocator->Reset();
-		m_commandList->Reset(m_cmdAllocator, nullptr);
-		m_commandList->ResourceBarrier(1, &barrier);
-		m_commandList->CopyResource(m_staging, m_resource);
+		m_copyCmdAllocator->Reset();
+		m_colyCommandList->Reset(m_copyCmdAllocator, nullptr);
+
+		m_colyCommandList->ResourceBarrier(1, &barrier);
+		m_colyCommandList->CopyResource(m_staging, m_resource);
 
 		//Close the q and execute it
-		m_commandList->Close();
-		ID3D12CommandList* ppCommandLists[] = { m_commandList };
-		m_computeQueue->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
+		m_colyCommandList->Close();
+		ID3D12CommandList* ppCommandLists[] = { m_colyCommandList };
+		m_copyQueue->ExecuteCommandLists(_ARRAYSIZE(ppCommandLists), ppCommandLists);
 
-		m_D3D12Wrap->WaitForGPUCompletion(m_computeQueue, m_D3D12Wrap->GetTestFence());
+		m_D3D12Wrap->WaitForGPUCompletion(m_copyQueue, m_D3D12Wrap->GetTestFence());
 	}
 
 	template<class T>
@@ -91,7 +92,7 @@ public:
 	{
 		m_resource = NULL;
 		m_staging = NULL;
-		m_commandList = NULL;
+		m_colyCommandList = NULL;
 		m_descHeap = NULL;
 		m_SRV = NULL;
 		m_UAV = NULL;
@@ -131,9 +132,9 @@ private:
 	ID3D12Resource*				m_SRV;
 	ID3D12Resource*				m_UAV;
 
-	ID3D12GraphicsCommandList*	m_commandList;
-	ID3D12CommandAllocator*		m_cmdAllocator = NULL;
-	ID3D12CommandQueue*			m_computeQueue = NULL;
+	ID3D12GraphicsCommandList*	m_colyCommandList;
+	ID3D12CommandAllocator*		m_copyCmdAllocator = NULL;
+	ID3D12CommandQueue*			m_copyQueue = NULL;
 	D3D12Wrap *					m_D3D12Wrap = NULL;
 
 	ID3D12DescriptorHeap*		m_descHeap;
@@ -261,6 +262,9 @@ class DX12_ComputeWrap
 	ID3D12DescriptorHeap*		m_descriptorHeap = NULL;
 	ID3D12CommandAllocator*		m_cmdAllocator = NULL;
 	ID3D12CommandQueue*			m_computeQueue = NULL;
+	ID3D12GraphicsCommandList*	m_colyCommandList = NULL;
+	ID3D12CommandAllocator*		m_copyCmdAllocator = NULL;
+	ID3D12CommandQueue*			m_copyQueue = NULL;
 	//ID3D12RootSignature*		m_rootSignature = NULL;
 
 	D3D12Wrap *					m_D3D12Wrap = NULL;
@@ -271,12 +275,18 @@ public:
 		ID3D12GraphicsCommandList* pCommandList,
 		ID3D12CommandAllocator* pCmdAllocator,
 		ID3D12CommandQueue* pCmdQueue,
+		ID3D12GraphicsCommandList* pCopyCommandList,
+		ID3D12CommandAllocator* pCopyCmdAllocator,
+		ID3D12CommandQueue* pCopyCmdQueue,
 		D3D12Wrap* pWrap)
 	{
 		m_device = pDevice;
 		m_commandList = pCommandList;
 		m_cmdAllocator = pCmdAllocator;
 		m_computeQueue = pCmdQueue;
+		m_colyCommandList = pCopyCommandList;
+		m_copyCmdAllocator = pCopyCmdAllocator;
+		m_copyQueue = pCopyCmdQueue;
 		m_D3D12Wrap = pWrap;
 	}
 

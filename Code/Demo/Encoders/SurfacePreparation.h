@@ -107,10 +107,16 @@ private:
 	ID3D12DescriptorHeap* m_heap;
 	D3D12Wrap * m_D3D12Wrap;
 
+	ID3D12DescriptorHeap* descHeap1 = nullptr;
+	ID3D12DescriptorHeap* descHeap2 = nullptr;
+	ID3D12Resource * shaderResource1 = nullptr;
+	ID3D12Resource * shaderResource2 = nullptr;
+
 private:
 	HRESULT _compileVertexShader();
 	HRESULT _compilePixelShader();
 	HRESULT _createPSO();
 
 	HRESULT InitSRV(ID3D12Device * device, ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
+	HRESULT createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
 };

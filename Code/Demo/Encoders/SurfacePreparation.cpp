@@ -538,12 +538,40 @@ void SurfacePreperationDX12::Cleanup()
 	SAFE_RELEASE(m_vertexShaderCode);
 	SAFE_RELEASE(m_pixelShaderCode);
 	SAFE_RELEASE(m_pso);
+	SAFE_RELEASE(descHeap1);
+	SAFE_RELEASE(descHeap2);
 }
 
 DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * device, ID3D12Resource * texture, float outputScale)
 {
 	DX12_PreparedSurface result;
-	
+
+	if (shaderResource2 != texture && shaderResource1 == nullptr)
+	{
+		shaderResource1 = texture;
+		SAFE_RELEASE(descHeap1);
+		createSRV(device, texture, descHeap1);
+	}
+	else if (shaderResource1 != texture && shaderResource2 == nullptr)
+	{
+		shaderResource2 = texture;
+		SAFE_RELEASE(descHeap2);
+		createSRV(device, texture, descHeap2);
+	}
+
+	result.Width = texture->GetDesc().Width;
+	result.Height = texture->GetDesc().Height;
+	if (shaderResource1 == texture)
+	{
+		auto size = texture->GetDesc().Width;
+		result.Heap = descHeap1;
+	}
+	if (shaderResource2 == texture)
+	{
+		result.Heap = descHeap2;
+	}
+
+	return result;
 	//SAFE_RELEASE(m_heap);
 	//InitSRV(texture, texture->GetDesc().Format, m_heap);
 
@@ -581,87 +609,6 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 		m_copyCommandList->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
 	}
 	*/
-	//Description for descriptor heap
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.NumDescriptors = 1;
-	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_heap));
-	m_heap->SetName(L"Testing resource HEAP for JPeg Encoder");
-	InitSRV(device, texture, texture->GetDesc().Format, m_heap);
-	
-	//m_heap = m_D3D12Wrap->GetSRVHeap();
-	result.Width = texture->GetDesc().Width;
-	result.Height = texture->GetDesc().Height;
-	result.Heap = m_heap;
-
-	return result;
-	/*if (texture)
-	{
-		//D3D11_TEXTURE2D_DESC textureDesc;
-		D3D12_RESOURCE_DESC textureDesc;
-		textureDesc = texture->GetDesc();
-		
-		if (textureDesc.SampleDesc.Count == 1)
-		{
-			SAFE_RELEASE(mCopyTextureGPU);
-			HRESULT hr = InitSRV(texture, textureDesc.Format, &mCopySRV);
-		}
-		else
-		{
-			if (mCopyDescription.Width != textureDesc.Width || mCopyDescription.Height != textureDesc.Height)
-			{
-				if (FAILED(InitCopyTexture(textureDesc.Width, textureDesc.Height)))
-				{
-					result.Heap = NULL;
-					return result;
-				}
-
-				InitSRV(mCopyTextureGPU, textureDesc.Format, &mCopySRV);
-			}
-
-			//check if texture is multisampled
-			if (textureDesc.SampleDesc.Count > 1)
-			{
-				mDeviceContext->ResolveSubresource(mCopyTextureGPU, 0, texture, 0, textureDesc.Format);
-			}
-			else
-			{
-				mDeviceContext->CopyResource(mCopyTextureGPU, texture);
-			}
-		}
-
-		if (outputScale != 1.0f)
-		{
-			int rescaledWidth = int(textureDesc.Width * outputScale);
-			int rescaledHeight = int(textureDesc.Height * outputScale);
-
-			if (mRescaleWidth != rescaledWidth || mRescaleHeight != rescaledHeight)
-			{
-				mRescaleWidth = rescaledWidth;
-				mRescaleHeight = rescaledHeight;
-
-				if (FAILED(InitRescaleTexture()))
-				{
-					result.Heap = NULL;
-					return result;
-				}
-			}
-
-			RenderCopyToRescaleTarget();
-
-			result.Heap = mRescaleSRV;
-			result.Width = rescaledWidth;
-			result.Height = rescaledHeight;
-		}
-		else
-		{
-			result.Heap = mCopySRV;
-			result.Width = textureDesc.Width;
-			result.Height = textureDesc.Height;
-		}
-	}
-
-	return result;*/
 }
 
 HRESULT SurfacePreperationDX12::_compileVertexShader()
@@ -836,4 +783,25 @@ HRESULT SurfacePreperationDX12::InitSRV(ID3D12Device * device, ID3D12Resource * 
 
 	device->CreateShaderResourceView(shaderResource, &desc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	return S_OK;
+}
+
+HRESULT SurfacePreperationDX12::createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.NumDescriptors = 1;
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (FAILED(device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&outDescriptorHeap))))
+		return E_FAIL;
+	outDescriptorHeap->SetName(L"Descriptor heap in EncoderJEnc");
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = shaderResource->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	device->CreateShaderResourceView(shaderResource, &srvDesc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	return E_NOTIMPL;
 }

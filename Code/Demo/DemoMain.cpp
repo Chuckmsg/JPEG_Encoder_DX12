@@ -779,7 +779,7 @@ void WorkerThread()
 			gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
 
 			resultMutex.lock();
-			gRes = jencEncoder->DX12_Encode(gD3D12.GetUnorderedAccessResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+			gRes = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 			resultMutex.unlock();
 
 			d3d12Profiler->CalculateAllDurations();
