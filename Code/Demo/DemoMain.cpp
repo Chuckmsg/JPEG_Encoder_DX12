@@ -109,8 +109,8 @@ HRESULT Init(HWND hwnd, int width, int height)
 	{
 		if (SUCCEEDED(InitDX12(hwnd, width, height)))
 		{
-			//if (FAILED(gSurfacePrepDX12.Init(&gD3D12)))
-			//	return E_FAIL;
+			if (FAILED(gSurfacePrepDX12.Init(&gD3D12)))
+				return E_FAIL;
 
 			DX12 = true;
 
