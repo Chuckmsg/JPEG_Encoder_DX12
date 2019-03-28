@@ -122,6 +122,8 @@ private:
 	ID3D12CommandQueue*			m_commandQueue = nullptr;
 	ID3D12DescriptorHeap* rtvDescHeap1 = nullptr;
 	ID3D12DescriptorHeap* rtvDescHeap2 = nullptr;
+	ID3D12DescriptorHeap* srvDescHeap1 = nullptr;
+	ID3D12DescriptorHeap* srvDescHeap2 = nullptr;
 
 	ID3D12DescriptorHeap* m_depthHeap = nullptr;
 	ID3D12Resource* m_depthBuffer = nullptr;
@@ -129,11 +131,6 @@ private:
 	ID3D12Resource* rtvTexture1 = nullptr;
 	ID3D12Resource* copyTexture2 = nullptr;
 	ID3D12Resource* rtvTexture2 = nullptr;
-
-	ID3D12Resource* staging = nullptr;
-	ID3D12Resource* _vertexBuffer = nullptr;
-
-	D3D12_VERTEX_BUFFER_VIEW _vertexBuffer_View;
 
 	struct DX12Fence
 	{
@@ -160,10 +157,8 @@ private:
 	HRESULT InitSRV(ID3D12Device * device, ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
 	HRESULT createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
 	HRESULT InitRescaleTexture(ID3D12Resource*& copyTexture, ID3D12Resource*& rtvTexture, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap, ID3D12DescriptorHeap*& rtvDescriptorHeap);
-	HRESULT createStagingBuffer(UINT64 size);
 	void render(ID3D12Resource*& rtvTexture, ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap);
 	HRESULT _createDepthBuffer(float width, float height, ID3D12Resource *& shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
-	void createVertexBuffer(size_t wsize, size_t count, const void * data, size_t size);
 	void copyTexture(ID3D12Resource*& destTexture, ID3D12Resource*& TextureToCopy);
 
 	inline void WaitForGPUCompletion(ID3D12CommandQueue * pCmdQ, DX12Fence * fence)

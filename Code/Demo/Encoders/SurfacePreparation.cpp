@@ -545,12 +545,6 @@ HRESULT SurfacePreperationDX12::Init(D3D12Wrap * pD3D12Wrap)
 	mRescaleWidth = 0;
 	mRescaleHeight = 0;
 
-	float4 triPos[3] = {
-		{ -1.0f,  1.0f, 0.0f, 1.0f },{ 1.0f, 1.0f, 0.0f, 1.0f },{ 1.0f, -1.0f, 0.0f, 1.0f }/*,
-		{ -1.0f,  1.0f, 0.0f, 1.0f },{ 1.0f, -1.0f, 0.0f, 1.0f },{ -1.0f, -1.0f, 0.0f, 1.0f }*/
-	};
-	createVertexBuffer(sizeof(float4), 4, triPos, sizeof(triPos));
-
 	return hr;
 }
 
@@ -564,6 +558,8 @@ void SurfacePreperationDX12::Cleanup()
 
 	SAFE_RELEASE(rtvDescHeap1);
 	SAFE_RELEASE(rtvDescHeap2);
+	SAFE_RELEASE(srvDescHeap1);
+	SAFE_RELEASE(srvDescHeap2);
 
 	SAFE_RELEASE(copyTexture1);
 	SAFE_RELEASE(rtvTexture1);
@@ -572,8 +568,6 @@ void SurfacePreperationDX12::Cleanup()
 
 	SAFE_RELEASE(m_depthBuffer);
 	SAFE_RELEASE(m_depthHeap);
-
-	SAFE_RELEASE(_vertexBuffer);
 
 	SAFE_RELEASE(m_commandList);
 	SAFE_RELEASE(m_cmdAllocator);
@@ -629,9 +623,9 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 
 				SAFE_RELEASE(copyTexture1);
 				SAFE_RELEASE(rtvTexture1);
-				SAFE_RELEASE(descHeap1);
+				SAFE_RELEASE(srvDescHeap1);
 				SAFE_RELEASE(rtvDescHeap1);
-				if (FAILED(InitRescaleTexture(copyTexture1, rtvTexture1, texture->GetDesc().Format, descHeap1, rtvDescHeap1)))
+				if (FAILED(InitRescaleTexture(copyTexture1, rtvTexture1, texture->GetDesc().Format, srvDescHeap1, rtvDescHeap1)))
 				{
 					result.Heap = NULL;
 					return result;
@@ -644,9 +638,9 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 
 				SAFE_RELEASE(copyTexture2);
 				SAFE_RELEASE(rtvTexture2);
-				SAFE_RELEASE(descHeap2);
+				SAFE_RELEASE(srvDescHeap2);
 				SAFE_RELEASE(rtvDescHeap2);
-				if (FAILED(InitRescaleTexture(copyTexture2, rtvTexture2, texture->GetDesc().Format, descHeap2, rtvDescHeap2)))
+				if (FAILED(InitRescaleTexture(copyTexture2, rtvTexture2, texture->GetDesc().Format, srvDescHeap2, rtvDescHeap2)))
 				{
 					result.Heap = NULL;
 					return result;
@@ -662,7 +656,7 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 
 			copyTexture(copyTexture1, rtvTexture1);
 
-			result.Heap = descHeap1;
+			result.Heap = srvDescHeap1;
 		}
 		if (shaderResource2 == texture)
 		{
@@ -670,7 +664,7 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 
 			copyTexture(copyTexture2, rtvTexture2);
 
-			result.Heap = descHeap2;
+			result.Heap = srvDescHeap2;
 		}
 	}
 	else
@@ -686,43 +680,6 @@ DX12_PreparedSurface SurfacePreperationDX12::GetValidSurface(ID3D12Device * devi
 	}
 
 	return result;
-	//SAFE_RELEASE(m_heap);
-	//InitSRV(texture, texture->GetDesc().Format, m_heap);
-
-	/*
-	// Copy the intermediate render target to the cross-adapter shared resource. 
-	// Transition barriers are not required since there are fences guarding against 
-	// concurrent read/write access to the shared heap. 
-	if (m_crossAdapterTextureSupport)
-	{
-		// If cross-adapter row-major textures are supported by the adapter, 
-		// simply copy the texture into the cross-adapter texture. 
-		m_copyCommandList->CopyResource(m_crossAdapterResources[adapter][m_frameIndex].Get(), m_renderTargets[adapter][m_frameIndex].Get());
-	}
-	else
-	{
-		// If cross-adapter row-major textures are not supported by the adapter, 
-		// the texture will be copied over as a buffer so that the texture row 
-		// pitch can be explicitly managed. 
-
-
-		// Copy the intermediate render target into the shared buffer using the 
-		// memory layout prescribed by the render target. 
-		D3D12_RESOURCE_DESC renderTargetDesc = m_renderTargets[adapter][m_frameIndex]->GetDesc();
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT renderTargetLayout;
-
-
-		m_devices[adapter]->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &renderTargetLayout, nullptr, nullptr, nullptr);
-
-
-		CD3DX12_TEXTURE_COPY_LOCATION dest(m_crossAdapterResources[adapter][m_frameIndex].Get(), renderTargetLayout);
-		CD3DX12_TEXTURE_COPY_LOCATION src(m_renderTargets[adapter][m_frameIndex].Get(), 0);
-		CD3DX12_BOX box(0, 0, m_width, m_height);
-
-
-		m_copyCommandList->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
-	}
-	*/
 }
 
 HRESULT SurfacePreperationDX12::_createListAllocQueue()
@@ -734,10 +691,12 @@ HRESULT SurfacePreperationDX12::_createListAllocQueue()
 	HRESULT hr = m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_commandQueue));
 	if (FAILED(hr))
 		return hr;
+	m_commandQueue->SetName(L"Rescale commandQueue");
 
 	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_cmdAllocator));
 	if (FAILED(hr))
 		return hr;
+	m_cmdAllocator->SetName(L"Rescale commandAllocator");
 
 	hr = m_device->CreateCommandList(
 		0,
@@ -746,6 +705,7 @@ HRESULT SurfacePreperationDX12::_createListAllocQueue()
 		nullptr,
 		IID_PPV_ARGS(&m_commandList)
 	);
+	m_commandList->SetName(L"Rescale commandList");
 	if (SUCCEEDED(hr))
 		m_commandList->Close();
 
@@ -764,8 +724,12 @@ HRESULT SurfacePreperationDX12::_compileVertexShader()
 		"{"
 		"	VS_OUT output = (VS_OUT)0;"
 
-		"	if(vertexId == 3)"
+		"	if(vertexId == 5)"
 		"		output.pos = float4(1.0, 1.0, 0.5, 1.0);"
+		"	else if(vertexId == 4)"
+		"		output.pos = float4(-1.0, 1.0, 0.5, 1.0);"
+		"	else if(vertexId == 3)"
+		"		output.pos = float4(1.0, -1.0, 0.5, 1.0);"
 		"	else if(vertexId == 2)"
 		"		output.pos = float4(1.0, -1.0, 0.5, 1.0);"
 		"	else if(vertexId == 1)"
@@ -810,8 +774,7 @@ HRESULT SurfacePreperationDX12::_compilePixelShader()
 		"float4 main( VS_OUT input ) : SV_Target"
 		"{"
 		//flip v-coord?
-		"return float4(1.0, 0.0, 0.0, 1.0);"
-		//"return float4(txDiffuse.Sample(samLinear, float2(input.tex.x, input.tex.y)).rgb, 1);"
+		"return float4(txDiffuse.Sample(samLinear, float2(input.tex.x, input.tex.y)).rgb, 1);"
 		"}";
 
 	ID3D10Blob* pShader = NULL;
@@ -1072,6 +1035,7 @@ HRESULT SurfacePreperationDX12::InitRescaleTexture(ID3D12Resource*& copyTexture,
 	{
 		return E_FAIL;
 	}
+	copyTexture->SetName(L"Rescale copyTexture");
 
 	// Describe and create an SRV for the texture
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1121,6 +1085,7 @@ HRESULT SurfacePreperationDX12::InitRescaleTexture(ID3D12Resource*& copyTexture,
 	{
 		return E_FAIL;
 	}
+	rtvTexture->SetName(L"Rescale rtvTexture");
 
 	D3D12_DESCRIPTOR_HEAP_DESC dhd2 = {};
 	dhd2.NumDescriptors = 1;
@@ -1132,40 +1097,6 @@ HRESULT SurfacePreperationDX12::InitRescaleTexture(ID3D12Resource*& copyTexture,
 	m_device->CreateRenderTargetView(rtvTexture, nullptr, rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	return S_OK;
-}
-
-HRESULT SurfacePreperationDX12::createStagingBuffer(UINT64 size)
-{
-	D3D12_RESOURCE_DESC desc = {};
-	ZeroMemory(&desc, sizeof(desc));
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	desc.Alignment = 0;
-	desc.Width = size;
-	desc.Height = 1;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Format = DXGI_FORMAT_UNKNOWN;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	D3D12_HEAP_PROPERTIES heapProperties = {};
-	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
-	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProperties.CreationNodeMask = 1;
-	heapProperties.VisibleNodeMask = 1;
-
-	HRESULT hr = m_device->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&staging)
-	);
-	return hr;
 }
 
 void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap)
@@ -1193,6 +1124,10 @@ void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12Descripto
 	m_commandList->RSSetScissorRects(1, &scissorRect);
 
 	m_commandList->OMSetRenderTargets(1, &rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), TRUE, &m_depthHeap->GetCPUDescriptorHandleForHeapStart());
+
+	static const float clearColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
+	m_commandList->ClearRenderTargetView(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), clearColor, 0, nullptr);
+	m_commandList->ClearDepthStencilView(m_depthHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_commandList->SetDescriptorHeaps(1, &textureDescriptorHeap);
@@ -1202,7 +1137,7 @@ void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12Descripto
 	//m_commandList->IASetVertexBuffers(0, 1, &_vertexBuffer_View);
 
 	// Record commands.
-	m_commandList->DrawInstanced(4, 1, 0, 0);
+	m_commandList->DrawInstanced(6, 1, 0, 0);
 
 	m_commandList->Close();
 
@@ -1226,7 +1161,7 @@ HRESULT SurfacePreperationDX12::_createDepthBuffer(float width, float height, ID
 	if (FAILED(hr))
 		return hr;
 
-	outDescriptorHeap->SetName(L"Depth Resource Heap");
+	outDescriptorHeap->SetName(L"Rescale Depth Resource Heap");
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
 	depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -1270,52 +1205,11 @@ HRESULT SurfacePreperationDX12::_createDepthBuffer(float width, float height, ID
 	if (FAILED(hr))
 		return hr;
 
-	shaderResource->SetName(L"DepthBufferResource");
+	shaderResource->SetName(L"Rescale DepthBufferResource");
 
 	m_device->CreateDepthStencilView(shaderResource, &depthStencilDesc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	return hr;
-}
-
-void SurfacePreperationDX12::createVertexBuffer(size_t wsize, size_t count, const void * data, size_t size)
-{
-	D3D12_HEAP_PROPERTIES hp = {};
-	hp.Type = D3D12_HEAP_TYPE_UPLOAD;
-	hp.CreationNodeMask = 1;
-	hp.VisibleNodeMask = 1;
-
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	rd.Width = size;
-	rd.Height = 1;
-	rd.DepthOrArraySize = 1;
-	rd.MipLevels = 1;
-	rd.SampleDesc.Count = 1;
-	rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	//Creates both a resource and an implicit heap, such that the heap is big enough
-	//to contain the entire resource and the resource is mapped to the heap.
-	m_device->CreateCommittedResource(
-		&hp,
-		D3D12_HEAP_FLAG_NONE,
-		&rd,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&_vertexBuffer));
-
-	_vertexBuffer->SetName(L"vb heap");
-
-	//Copy the triangle data to the vertex buffer.
-	void* dataBegin = nullptr;
-	D3D12_RANGE range = { 0, 0 }; //We do not intend to read this resource on the CPU.
-	_vertexBuffer->Map(0, &range, &dataBegin);
-	memcpy(((char*)dataBegin), data, size);
-	_vertexBuffer->Unmap(0, nullptr);
-
-	//Initialize vertex buffer view, used in the render call.
-	_vertexBuffer_View.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
-	_vertexBuffer_View.StrideInBytes = wsize;
-	_vertexBuffer_View.SizeInBytes = size;
 }
 
 void SurfacePreperationDX12::copyTexture(ID3D12Resource *& destTexture, ID3D12Resource *& TextureToCopy)
