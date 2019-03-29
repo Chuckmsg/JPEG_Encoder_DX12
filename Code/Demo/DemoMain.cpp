@@ -55,9 +55,6 @@ D3DProfiler* DirectListProfiler = NULL;
 EncodeResult gRes;
 std::mutex resultMutex;
 
-bool present = false;
-std::mutex presentMutex;
-
 bool running = true;
 std::thread worker;
 std::mutex workerMutex;
@@ -145,6 +142,8 @@ HRESULT Init(HWND hwnd, int width, int height)
 
 	if(SUCCEEDED(hr = gD3D.Init(hwnd, width, height)))
 	{
+		gLockedFrameRate = 0;
+		gScreenRefreshRate = 0;
 		if(FAILED(gSurfacePrep.Init(gD3D.GetDevice(), gD3D.GetDeviceContext())))
 			return E_FAIL;
 
@@ -388,9 +387,7 @@ HRESULT Render(float deltaTime, HWND hwnd)
 	d3d11Profiler->EndTimestamp(DX11_FrameTime);
 	d3d11Profiler->EndProfiler();
 
-#ifdef _DEBUG
 	d3d11Profiler->CalculateAllDurations();
-#endif // _DEBUG
 
 	return S_OK;
 }
@@ -545,7 +542,7 @@ HWND InitWindow( HINSTANCE hInstance, int nCmdShow, int width, int height )
 	if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &lpDevMode) == 0)
 		gScreenRefreshRate = 60;
 	else
-		gScreenRefreshRate = 0;// (int)lpDevMode.dmDisplayFrequency;
+		gScreenRefreshRate = (int)lpDevMode.dmDisplayFrequency;
 	
 	gLockedFrameRate = gScreenRefreshRate;
 
@@ -616,12 +613,6 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		threadStarted = true;
 	}
 
-	//present the back buffer
-	if (present)
-	{
-		DXGI_PRESENT_PARAMETERS pp = {};
-		HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
-
 		static int movieNum = 1;
 		if (GetAsyncKeyState(VK_F2))
 		{
@@ -676,11 +667,6 @@ HRESULT RenderDX12(float deltaTime, HWND hwnd)
 		{
 			bthPressed = false;
 		}
-
-		presentMutex.lock();
-		present = false;
-		presentMutex.unlock();
-	}
 	
 	TCHAR title[200];
 	_stprintf_s(title, sizeof(title) / 2, _T("JPEG DirectCompute Demo | FPS: %.0f | Quality: %d | Output scale: %.2f | Subsampling: %s"),
@@ -796,19 +782,17 @@ void WorkerThread()
 
 	while (running)
 	{
-		if (!present)
-		{
 			ComputeListProfiler->Update();
 			DirectListProfiler->Update();
 
+			std::thread directListCommandRecording(PopulateDirectList, pDirectCmdList); //let a thread record commands for something that is later executed
 			PopulateComputeList(pCompCmdList);
-			PopulateDirectList(pDirectCmdList);
 
 			ID3D12CommandList* listsToExecute1[] = { pCompCmdList };
 			pCompCmdQ->ExecuteCommandLists(1, listsToExecute1);
 			gD3D12.WaitForGPUCompletion(pCompCmdQ, gD3D12.GetFence(0));
 
-
+			directListCommandRecording.join(); //wait for thread to finish before execution
 			ID3D12CommandList* listsToExecute2[] = { pDirectCmdList };
 			pDirectCmdQ->ExecuteCommandLists(1, listsToExecute2);
 			gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
@@ -817,13 +801,11 @@ void WorkerThread()
 			gRes = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 			resultMutex.unlock();
 
+			DXGI_PRESENT_PARAMETERS pp = {};
+			HRESULT hr = gD3D12.GetSwapChain()->Present1(0, 0, &pp);
+
 			ComputeListProfiler->CalculateAllDurations();
 			DirectListProfiler->CalculateAllDurations();
-
-			presentMutex.lock();
-			present = true;
-			presentMutex.unlock();
-		}
 	}
 }
 
