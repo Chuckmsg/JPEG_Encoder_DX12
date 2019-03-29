@@ -459,16 +459,6 @@ ID3D12Resource * DX12_ComputeWrap::CreateStructuredBuffer(DX12_ComputeBuffer* bu
 		nullptr,
 		IID_PPV_ARGS(&pResource)
 	);
-/*	if (FAILED(m_device->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&pResource))))
-	{
-		return nullptr;
-	}*/
 
 	if (pInitData)
 	{

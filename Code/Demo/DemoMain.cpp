@@ -131,11 +131,6 @@ HRESULT Init(HWND hwnd, int width, int height)
 			//Create the jpeg encoder here
 			jencEncoder = myNew DX12_EncoderJEnc(&gSurfacePrepDX12);
 			jencEncoder->Init(&gD3D12);
-			
-			//jencPtr = DX12_CreateJpegEncoderInstance(GPU_ENCODER, JENC_CHROMA_SUBSAMPLE_4_4_4, &gD3D12);
-
-			//D3D12_RESOURCE_DESC& desc = gD3D12.GetBackBufferResource(0)->GetDesc();
-			//testTexture = CreateTextureResource(desc.Format, desc.Width, desc.Height, 0, gD3D12.GetBackBufferResource(0)->);
 
 			InitDX12Profilers();
 
@@ -202,7 +197,6 @@ HRESULT Cleanup()
 
 	SAFE_DELETE(jencEncoder);
 	SAFE_DELETE(gEncJEnc);
-	SAFE_DELETE(gTexture->bits);
 	SAFE_DELETE(gTexture);
 	SAFE_DELETE(gBackbufferShader);
 	SAFE_DELETE(gComputeWrap);
@@ -814,7 +808,7 @@ void WorkerThread()
 			gD3D12.WaitForGPUCompletion(pDirectCmdQ, gD3D12.GetFence(1));
 
 			resultMutex.lock();
-			gRes = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gTexture->bits, gChromaSubsampling, gOutputScale, (int)gJpegQuality);
+			gRes = jencEncoder->DX12_Encode(gD3D12.GetBackBufferResource(gD3D12.GetFrameIndex()), gChromaSubsampling, gOutputScale, (int)gJpegQuality);
 			resultMutex.unlock();
 
 			ComputeListProfiler->CalculateAllDurations();

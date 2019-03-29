@@ -82,6 +82,11 @@ public:
 	void Unmap();
 };
 
+
+/*
+	Christoffer Åleskog
+	DirectX 12 version of class SurfacePreperation
+*/
 class SurfacePreperationDX12
 {
 public:
@@ -134,7 +139,6 @@ private:
 
 	struct DX12Fence
 	{
-		//Synchronization objects
 		UINT m_frameIndex = 0;
 		HANDLE m_fenceEvent = NULL;
 		ID3D12Fence* m_fence = NULL;
@@ -144,9 +148,6 @@ private:
 	DX12Fence m_fence;
 
 private:
-	struct float4 { float r, g, b, a; };
-	struct float2 { float x, y; };
-
 	HRESULT _createListAllocQueue();
 	HRESULT _compileVertexShader();
 	HRESULT _compilePixelShader();
@@ -154,7 +155,6 @@ private:
 	HRESULT _createRootSignature();
 	HRESULT _createFence();
 
-	HRESULT InitSRV(ID3D12Device * device, ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
 	HRESULT createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
 	HRESULT InitRescaleTexture(ID3D12Resource*& copyTexture, ID3D12Resource*& rtvTexture, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap, ID3D12DescriptorHeap*& rtvDescriptorHeap);
 	void render(ID3D12Resource*& rtvTexture, ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap);

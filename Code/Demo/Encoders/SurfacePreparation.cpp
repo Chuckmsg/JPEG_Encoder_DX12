@@ -882,35 +882,33 @@ HRESULT SurfacePreperationDX12::_createRootSignature()
 {
 	D3D12_DESCRIPTOR_RANGE descRanges[1];
 	{
-		//1 SRV descriptor = 2 DWORDs
 		{
 			descRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			descRanges[0].NumDescriptors = 1; //Only assmuing one texture so far
-			descRanges[0].BaseShaderRegister = 0; // register t0
-			descRanges[0].RegisterSpace = 0; //register(t0, space0);
+			descRanges[0].NumDescriptors = 1;
+			descRanges[0].BaseShaderRegister = 0;
+			descRanges[0].RegisterSpace = 0;
 			descRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
 
-	//Create necessary Descriptor Tables
-	D3D12_ROOT_DESCRIPTOR_TABLE descTables[1]; //"Only need one so far"?
+	//Create necessary Descriptor Table
+	D3D12_ROOT_DESCRIPTOR_TABLE descTables[1];
 	{
-
 		//1 Descriptor Table for the SRV descriptor = 1 DWORD
 		{
-			descTables[0].NumDescriptorRanges = _ARRAYSIZE(descRanges); //how many descriptors for this table
-			descTables[0].pDescriptorRanges = &descRanges[0]; //pointer to descriptor array
+			descTables[0].NumDescriptorRanges = _ARRAYSIZE(descRanges);
+			descTables[0].pDescriptorRanges = &descRanges[0];
 		}
 	}
 
-	//Create the root parameters (basically define the root table structure)
-	D3D12_ROOT_PARAMETER rootParams[1]; //We only have defined one element to insert (Descriptor table)
+	//We only have defined one element to insert (SRV Descriptor table)
+	D3D12_ROOT_PARAMETER rootParams[1];
 	{
 		// [1] - Descriptor table for SRV descriptor
 		{
-			rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; //What type is the entry?
-			rootParams[0].DescriptorTable = descTables[0]; //Which desc table?
-			rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; //Which shader stages can access this entry? 
+			rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[0].DescriptorTable = descTables[0];
+			rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		}
 	}
 
@@ -933,14 +931,13 @@ HRESULT SurfacePreperationDX12::_createRootSignature()
 	//Create the descriptions of the root signature
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	{
-		rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | //IA enabled = max 63 DWORDs
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS | // we can deny shader stages here for better performance
+		rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-		rsDesc.NumParameters = _ARRAYSIZE(rootParams); //How many entries?
-		rsDesc.pParameters = rootParams; //Pointer to array of table entries
-		rsDesc.NumStaticSamplers = 1;  //One static samplers were defined
-		rsDesc.pStaticSamplers = &sampler; // The static sampler
+		rsDesc.NumParameters = _ARRAYSIZE(rootParams);
+		rsDesc.pParameters = rootParams;
+		rsDesc.NumStaticSamplers = 1;
+		rsDesc.pStaticSamplers = &sampler;
 	}
 
 	//Serialize the root signature (no error blob)
@@ -952,7 +949,6 @@ HRESULT SurfacePreperationDX12::_createRootSignature()
 		nullptr
 	);
 
-	//Use d3d12 device to create the root signature
 	UINT nodeMask = 0;
 	return this->m_device->CreateRootSignature(nodeMask, pSerBlob->GetBufferPointer(), pSerBlob->GetBufferSize(), IID_PPV_ARGS(&this->m_rootSignature));
 }
@@ -967,19 +963,6 @@ HRESULT SurfacePreperationDX12::_createFence()
 	m_fence.m_fenceEvent = CreateEvent(0, false, false, 0);
 
 	return hr;
-}
-
-HRESULT SurfacePreperationDX12::InitSRV(ID3D12Device * device, ID3D12Resource * shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap *& outDescriptorHeap)
-{
-	D3D12_SHADER_RESOURCE_VIEW_DESC desc;
-	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	desc.Format = format;
-	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D.MostDetailedMip = 0;
-	desc.Texture2D.MipLevels = 1;
-
-	device->CreateShaderResourceView(shaderResource, &desc, outDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-	return S_OK;
 }
 
 HRESULT SurfacePreperationDX12::createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap)
