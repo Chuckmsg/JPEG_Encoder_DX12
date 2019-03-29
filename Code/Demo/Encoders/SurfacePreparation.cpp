@@ -1108,8 +1108,6 @@ void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12Descripto
 
 	m_commandList->OMSetRenderTargets(1, &rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), TRUE, &m_depthHeap->GetCPUDescriptorHandleForHeapStart());
 
-	static const float clearColor[4] = { 1.0f, 1.0f, 0.0f, 1.0f };
-	m_commandList->ClearRenderTargetView(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), clearColor, 0, nullptr);
 	m_commandList->ClearDepthStencilView(m_depthHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
