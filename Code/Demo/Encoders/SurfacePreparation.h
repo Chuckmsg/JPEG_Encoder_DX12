@@ -82,6 +82,11 @@ public:
 	void Unmap();
 };
 
+
+/*
+	Christoffer Åleskog
+	DirectX 12 version of class SurfacePreperation
+*/
 class SurfacePreperationDX12
 {
 public:
@@ -90,7 +95,7 @@ public:
 
 	HRESULT Init(D3D12Wrap * pD3D12Wrap);
 
-	ID3D12PipelineState * GetPSO() { return m_pso; }
+	ID3D12PipelineState * GetPSO() { return m_PSO; }
 
 	void Cleanup();
 
@@ -98,25 +103,75 @@ public:
 
 private:
 	ID3D12Device * m_device			= NULL;
-	ID3D12RootSignature * m_root	= NULL;
-	ID3D12PipelineState * m_pso		= NULL;
+	ID3D12RootSignature * m_rootSignature = NULL;
+	ID3D12PipelineState * m_PSO		= NULL;
 
 	ID3D10Blob * m_vertexShaderCode = NULL;
 	ID3D10Blob * m_pixelShaderCode = NULL;
-
-	ID3D12DescriptorHeap* m_heap;
-	D3D12Wrap * m_D3D12Wrap;
 
 	ID3D12DescriptorHeap* descHeap1 = nullptr;
 	ID3D12DescriptorHeap* descHeap2 = nullptr;
 	ID3D12Resource * shaderResource1 = nullptr;
 	ID3D12Resource * shaderResource2 = nullptr;
 
+	int mRescaleWidth;
+	int mRescaleHeight;
+
+	int mRescaleWidth1;
+	int mRescaleHeight1;
+	int mRescaleWidth2;
+	int mRescaleHeight2;
+
+	ID3D12GraphicsCommandList*  m_commandList = nullptr;
+	ID3D12CommandAllocator*		m_cmdAllocator = nullptr;
+	ID3D12CommandQueue*			m_commandQueue = nullptr;
+	ID3D12DescriptorHeap* rtvDescHeap1 = nullptr;
+	ID3D12DescriptorHeap* rtvDescHeap2 = nullptr;
+	ID3D12DescriptorHeap* srvDescHeap1 = nullptr;
+	ID3D12DescriptorHeap* srvDescHeap2 = nullptr;
+
+	ID3D12DescriptorHeap* m_depthHeap = nullptr;
+	ID3D12Resource* m_depthBuffer = nullptr;
+	ID3D12Resource* copyTexture1 = nullptr;
+	ID3D12Resource* rtvTexture1 = nullptr;
+	ID3D12Resource* copyTexture2 = nullptr;
+	ID3D12Resource* rtvTexture2 = nullptr;
+
+	struct DX12Fence
+	{
+		UINT m_frameIndex = 0;
+		HANDLE m_fenceEvent = NULL;
+		ID3D12Fence* m_fence = NULL;
+		UINT64 m_fenceValue = 0;
+	};
+
+	DX12Fence m_fence;
+
 private:
+	HRESULT _createListAllocQueue();
 	HRESULT _compileVertexShader();
 	HRESULT _compilePixelShader();
 	HRESULT _createPSO();
+	HRESULT _createRootSignature();
+	HRESULT _createFence();
 
-	HRESULT InitSRV(ID3D12Device * device, ID3D12Resource* shaderResource, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap);
 	HRESULT createSRV(ID3D12Device * device, ID3D12Resource * shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
+	HRESULT InitRescaleTexture(ID3D12Resource*& copyTexture, ID3D12Resource*& rtvTexture, DXGI_FORMAT format, ID3D12DescriptorHeap*& outDescriptorHeap, ID3D12DescriptorHeap*& rtvDescriptorHeap);
+	void render(ID3D12Resource*& rtvTexture, ID3D12DescriptorHeap*& rtvDescriptorHeap, ID3D12DescriptorHeap*& textureDescriptorHeap);
+	HRESULT _createDepthBuffer(float width, float height, ID3D12Resource *& shaderResource, ID3D12DescriptorHeap*& outDescriptorHeap);
+	void copyTexture(ID3D12Resource*& destTexture, ID3D12Resource*& TextureToCopy);
+
+	inline void WaitForGPUCompletion(ID3D12CommandQueue * pCmdQ, DX12Fence * fence)
+	{
+		const UINT64 fenceValue = fence->m_fenceValue;
+		pCmdQ->Signal(fence->m_fence, fenceValue);
+		fence->m_fenceValue++;
+
+		auto lol = fence->m_fence->GetCompletedValue();
+		if (lol < fenceValue)
+		{
+			fence->m_fence->SetEventOnCompletion(fenceValue, fence->m_fenceEvent);
+			WaitForSingleObject(fence->m_fenceEvent, INFINITE);
+		}
+	}
 };

@@ -583,18 +583,18 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	*/
 
 	// Descriptor range for sampler
-	D3D12_DESCRIPTOR_RANGE descRangesSampler[1]; //Lets start with one
+	D3D12_DESCRIPTOR_RANGE descRangesSampler[1];
 	{
 		//Sampler descriptor
 		{
 			descRangesSampler[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-			descRangesSampler[0].NumDescriptors = 1; //Only one sampler
-			descRangesSampler[0].BaseShaderRegister = 0; // register s0
+			descRangesSampler[0].NumDescriptors = 1;
+			descRangesSampler[0].BaseShaderRegister = 0;
 			descRangesSampler[0].RegisterSpace = 0;
 			descRangesSampler[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
-	//	Descriptor ranges for SRV, UAV and CBV
+	//	Descriptor ranges for SRVs
 	D3D12_DESCRIPTOR_RANGE descRangesSRV[1];
 	{
 		//SRV, t1 - t2
@@ -606,7 +606,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			descRangesSRV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
-	//	Descriptor ranges for SRV, UAV and CBV
+	//	Descriptor ranges for SRV
 	D3D12_DESCRIPTOR_RANGE descRangesSRVImage[1];
 	{
 		//SRV, t2
@@ -618,7 +618,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			descRangesSRVImage[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
-	//	Descriptor ranges for SRV, UAV and CBV
+	//	Descriptor ranges for SRVs
 	D3D12_DESCRIPTOR_RANGE descRangesSRV3To4[1];
 	{
 		//SRV, t3 - t4
@@ -631,7 +631,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 		}
 	}
 
-	//	Descriptor ranges for SRV, UAV and CBV
+	//	Descriptor ranges for CBV
 	D3D12_DESCRIPTOR_RANGE descRangesCBV[1];
 	{
 		//CBV, b0
@@ -643,7 +643,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			descRangesCBV[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 	}
-	//	Descriptor ranges for SRV, UAV and CBV
+	//	Descriptor ranges for UAV
 	D3D12_DESCRIPTOR_RANGE descRangesUAV[1];
 	{
 		//CBV, b0
@@ -661,38 +661,38 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	{
 		// Descriptor Table for the sampler
 		{
-			descTables[0].NumDescriptorRanges = _ARRAYSIZE(descRangesSampler); //how many descriptors for this table
-			descTables[0].pDescriptorRanges = &descRangesSampler[0]; //pointer to descriptor array
+			descTables[0].NumDescriptorRanges = _ARRAYSIZE(descRangesSampler);
+			descTables[0].pDescriptorRanges = &descRangesSampler[0];
 		}
-		// Descriptor Table for the SRV descriptors (the three first)
+		// Descriptor Table for the SRV descriptors (the two first, t0 and t1)
 		{
-			descTables[1].NumDescriptorRanges = _ARRAYSIZE(descRangesSRV); //how many descriptors for this table
-			descTables[1].pDescriptorRanges = &descRangesSRV[0]; //pointer to descriptor array
+			descTables[1].NumDescriptorRanges = _ARRAYSIZE(descRangesSRV);
+			descTables[1].pDescriptorRanges = &descRangesSRV[0];
 		}
 		// Descriptor Table for the SRV descriptors t3 to t4
 		{
-			descTables[2].NumDescriptorRanges = _ARRAYSIZE(descRangesSRV3To4); //how many descriptors for this table
-			descTables[2].pDescriptorRanges = &descRangesSRV3To4[0]; //pointer to descriptor array
+			descTables[2].NumDescriptorRanges = _ARRAYSIZE(descRangesSRV3To4);
+			descTables[2].pDescriptorRanges = &descRangesSRV3To4[0];
 		}
 		// Descriptor Table for the UAV descriptors
 		{
-			descTables[3].NumDescriptorRanges = _ARRAYSIZE(descRangesUAV); //how many descriptors for this table
-			descTables[3].pDescriptorRanges = &descRangesUAV[0]; //pointer to descriptor array
+			descTables[3].NumDescriptorRanges = _ARRAYSIZE(descRangesUAV);
+			descTables[3].pDescriptorRanges = &descRangesUAV[0];
 		}
 		// Descriptor Table for the CBV descriptors
 		{
-			descTables[4].NumDescriptorRanges = _ARRAYSIZE(descRangesCBV); //how many descriptors for this table
-			descTables[4].pDescriptorRanges = &descRangesCBV[0]; //pointer to descriptor array
+			descTables[4].NumDescriptorRanges = _ARRAYSIZE(descRangesCBV);
+			descTables[4].pDescriptorRanges = &descRangesCBV[0];
 		}
 
-		// Descriptor Table for the SRV descriptors (the three first)
+		// Descriptor Table for the SRV descriptors of t2 (Texture)
 		{
-			descTables[5].NumDescriptorRanges = _ARRAYSIZE(descRangesSRVImage); //how many descriptors for this table
-			descTables[5].pDescriptorRanges = &descRangesSRVImage[0]; //pointer to descriptor array
+			descTables[5].NumDescriptorRanges = _ARRAYSIZE(descRangesSRVImage);
+			descTables[5].pDescriptorRanges = &descRangesSRVImage[0];
 		}
 	}
 
-	//Create the root parameters. Only two descriptor tables, one for sampler and the other for the SRV, UAV and CBV descriptors
+	//Create the root parameters.
 	D3D12_ROOT_PARAMETER rootParams[6];
 	{
 		// [0] - Descriptor table for smpler descriptors
@@ -701,7 +701,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 			rootParams[0].DescriptorTable = descTables[0];
 			rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		}
-		// [1] - Descriptor table for SRV descriptors (the three first)
+		// [1] - Descriptor table for SRV descriptors (the two first, t0 and t1)
 		{
 			rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			rootParams[1].DescriptorTable = descTables[1];
@@ -736,7 +736,7 @@ HRESULT DX12_JpegEncoderGPU::createRootSignature()
 	//Create the descriptions of the root signature
 	D3D12_ROOT_SIGNATURE_DESC rsDesc;
 	{
-		rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE; // Do not know if this is correct
+		rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 		rsDesc.NumParameters = _ARRAYSIZE(rootParams);
 		rsDesc.pParameters = rootParams;
 		rsDesc.NumStaticSamplers = 0;
@@ -904,21 +904,21 @@ void DX12_JpegEncoderGPU::UpdateQuantizationTable(DX12_ComputeBuffer * quantizat
 	MakeResourceBarrier(
 		barrier,
 		D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-		mCB_CbCr_Quantization_Table->GetResource(),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		D3D12_RESOURCE_STATE_COPY_SOURCE // Do not know if this is correct
+		uploadHeap,
+		D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_COMMON
 	);
 
-	ThrowIfFailed(mDirectAllocator->Reset());
-	ThrowIfFailed(mDirectList->Reset(mDirectAllocator, nullptr));
-	//mDirectList->SetGraphicsRootSignature(mRootSignature); Do not know if this is correct
+	ThrowIfFailed(mCopyAllocator->Reset());
+	ThrowIfFailed(mCopyList->Reset(mCopyAllocator, nullptr));
 
-	UpdateSubresources(mDirectList, quantizationTable->GetResource(), uploadHeap, 0, 0, 1, &data);
-	mDirectList->ResourceBarrier(1, &barrier);
+	UpdateSubresources(mCopyList, quantizationTable->GetResource(), uploadHeap, 0, 0, 1, &data);
+	mCopyList->ResourceBarrier(1, &barrier);
 
-	// Execute command list?
-	ID3D12CommandList* listsToExecute[] = { mDirectList };
-	mDirectQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
+	ID3D12CommandList* listsToExecute[] = { mCopyList };
+	mCopyQueue->ExecuteCommandLists(_ARRAYSIZE(listsToExecute), listsToExecute);
+
+	SAFE_RELEASE(uploadHeap);
 }
 
 void DX12_JpegEncoderGPU::shutdown()

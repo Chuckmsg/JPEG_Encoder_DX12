@@ -43,7 +43,7 @@ public:
 	DX12_EncoderJEnc(SurfacePreperationDX12* surfacePrep);
 	virtual ~DX12_EncoderJEnc();
 
-	virtual EncodeResult DX12_Encode(ID3D12Resource* textureResource, unsigned char* Data,
+	virtual EncodeResult DX12_Encode(ID3D12Resource* textureResource,
 		CHROMA_SUBSAMPLE subsampleType,
 		float outputScale,
 		int jpegQuality);
@@ -54,12 +54,4 @@ public:
 
 private:
 	D3D12Wrap * mD3D12Wrap;
-	ID3D12Resource * copyTexture = nullptr;
-	ID3D12Resource * currentTextureResourcePtr = nullptr;
-	ID3D12DescriptorHeap* descHeap = nullptr;
-
-private:
-
-	HRESULT CreateTextureResource(D3D12_CPU_DESCRIPTOR_HANDLE& cpuDescHandle, ID3D12Resource * textureResource);
-	HRESULT CopyTexture(ID3D12Resource * textureResource);
 };
