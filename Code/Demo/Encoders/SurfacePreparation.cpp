@@ -1115,7 +1115,6 @@ void SurfacePreperationDX12::render(ID3D12Resource*& rtvTexture, ID3D12Descripto
 	m_commandList->SetGraphicsRootDescriptorTable(0, textureDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 	m_commandList->SetPipelineState(m_PSO);
-	//m_commandList->IASetVertexBuffers(0, 1, &_vertexBuffer_View);
 
 	// Record commands.
 	m_commandList->DrawInstanced(6, 1, 0, 0);
